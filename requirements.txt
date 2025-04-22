@@ -1,0 +1,7 @@
+Flask
+pymongo[srv]  # [srv] is needed for MongoDB Atlas DNS seed list connections
+python-dotenv
+werkzeug      # For password hashing (comes with Flask but good to list)
+Flask-Login   # For user session management (optional but recommended for auth)
+bcrypt        # Better password hashing
+# Add other libraries like Flask-WTF for forms if needed

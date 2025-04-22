@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="jumbotron bg-light p-5 rounded-lg m-3">
+    <h1 class="display-4">Welcome to Restaurant Billing!</h1>
+    <p class="lead">Manage your restaurant operations efficiently.</p>
+    <hr class="my-4">
+    <p>Use the navigation bar to manage Menu Items, Tables, Orders, and more.</p>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('orders.list_orders') }}" role="button">View Orders</a>
+    <a class="btn btn-secondary btn-lg" href="{{ url_for('menu.list_menu_items') }}" role="button">Manage Menu</a>
+  </div>
+
+  <!-- Add dashboard widgets here later -->
+{% endblock %}
