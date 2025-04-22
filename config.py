@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 import secrets # For generating default secret key
+from urllib.parse import quote_plus # <<< Import quote_plus
 
 # Load environment variables from .env file
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -23,12 +24,16 @@ class Config:
 
     # Construct MongoDB URI
     if MONGO_USERNAME and MONGO_PASSWORD:
-        MONGO_URI = f"mongodb://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/{MONGO_DBNAME}?authSource={MONGO_AUTH_DB}"
-        print("INFO: Using MongoDB connection string WITH authentication.")
+        # --- Encode username and password ---
+        escaped_username = quote_plus(MONGO_USERNAME)
+        escaped_password = quote_plus(MONGO_PASSWORD)
+        # --- Use encoded values in the URI ---
+        MONGO_URI = f"mongodb://{escaped_username}:{escaped_password}@{MONGO_HOST}:{MONGO_PORT}/{MONGO_DBNAME}?authSource={MONGO_AUTH_DB}"
+        print("INFO: Using MongoDB connection string WITH authentication (credentials escaped).")
     else:
-        # Connection string without authentication (less secure, use with caution)
+        # Connection string without authentication
         MONGO_URI = f"mongodb://{MONGO_HOST}:{MONGO_PORT}/{MONGO_DBNAME}"
-        print("WARNING: Using MongoDB connection string WITHOUT authentication.")
+        print("INFO: Using MongoDB connection string WITHOUT authentication.") # Changed from WARNING
 
     # --- Application Specific Settings (Add more as needed) ---
-    KDS_REFRESH_RATE = 15 # Default KDS refresh rate in seconds
+    KDS_REFRESH_RATE = int(os.environ.get('KDS_REFRESH_RATE', 15)) # Allow override via env
