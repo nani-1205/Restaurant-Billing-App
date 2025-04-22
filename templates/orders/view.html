@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }} <span class="text-muted fs-5">({{ order._id }})</span></h1>
+
+ <div class="card mb-4">
+    <div class="card-header">
+        Order Summary
+    </div>
+    <div class="card-body">
+         <div class="row">
+            <div class="col-md-6">
+                <p><strong>Table:</strong> Table {{ order.table_number }}</p>
+                <p><strong>Status:</strong>
+                    <span class="badge
+                        {% if order.status == 'pending' %} bg-warning text-dark
+                        {% elif order.status == 'preparing' %} bg-info text-dark
+                        {% elif order.status == 'ready' %} bg-primary
+                        {% elif order.status == 'served' %} bg-success
+                        {% elif order.status == 'cancelled' %} bg-danger
+                        {% elif order.status == 'billed' %} bg-secondary
+                        {% else %} bg-light text-dark {% endif %}">
+                        {{ order.status|capitalize }}
+                    </span>
+                </p>
+                <p><strong>Timestamp:</strong> {{ order.timestamp_str }} UTC</p>
+                {% if order.billed_at %}
+                <p><strong>Billed At:</strong> {{ order.billed_at.strftime('%Y-%m-%d %H:%M:%S') }} UTC</p>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <p><strong>Total Amount:</strong> ${{ "%.2f"|format(order.total_amount) }}</p>
+                 {% if order.notes %}
+                <p><strong>Notes:</strong></p>
+                <pre>{{ order.notes }}</pre>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="card">
+     <div class="card-header">
+        Order Items
+    </div>
+    <div class="card-body">
+        {% if order.items %}
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Price Each (at order)</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>${{ "%.2f"|format(item.price_at_order) }}</td>
+                    <td>${{ "%.2f"|format(item.price_at_order * item.quantity) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+             <tfoot>
+                <tr>
+                    <th colspan="3" class="text-end">Grand Total:</th>
+                    <th>${{ "%.2f"|format(order.total_amount) }}</th>
+                </tr>
+            </tfoot>
+        </table>
+        {% else %}
+        <p>No items found in this order.</p>
+        {% endif %}
+    </div>
+</div>
+
+{# Actions for non-final orders #}
+{% if order.status not in ['billed', 'cancelled'] %}
+<div class="mt-4 card">
+     <div class="card-header">
+        Actions
+    </div>
+    <div class="card-body">
+         <form action="{{ url_for('orders.update_order_status', order_id=order._id) }}" method="POST" class="d-inline-block me-2">
+             <label for="status" class="form-label">Change Status:</label>
+             <div class="input-group">
+                 <select name="status" id="status" class="form-select">
+                     {% for status in statuses %}
+                          {% if status != order.status and status != 'billed' %} {# Don't show current or billed #}
+                         <option value="{{ status }}">{{ status|capitalize }}</option>
+                         {% endif %}
+                     {% endfor %}
+                 </select>
+                 <button type="submit" class="btn btn-primary">Update</button>
+             </div>
+         </form>
+         {# Add Edit/Cancel buttons if needed #}
+    </div>
+</div>
+{% endif %}
+
+
+<div class="mt-4">
+    <a href="{{ request.referrer or url_for('orders.list_orders') }}" class="btn btn-secondary">Back to Orders List</a>
+    {% if order.status not in ['billed', 'cancelled'] and order.table_id %}
+     <a href="{{ url_for('billing.view_bill', table_id_str=order.table_id) }}" class="btn btn-info">Go to Bill for Table {{ order.table_number }}</a>
+    {% endif %}
+</div>
+
+{% endblock %}

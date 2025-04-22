@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<p>Tables that are occupied or have active (unbilled) orders.</p>
+
+{% if tables %}
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+    {% for table in tables %}
+    <div class="col">
+        <div class="card h-100 shadow-sm {% if table.status == 'occupied' and table.active_order_count > 0 %}border-primary{% elif table.status == 'occupied' %}border-warning{% else %}border-secondary{% endif %}">
+             <div class="card-header {% if table.status == 'occupied' and table.active_order_count > 0 %}bg-primary text-white{% elif table.status == 'occupied' %}bg-warning text-dark{% else %}bg-secondary text-white{% endif %}">
+                Table #{{ table.number }}
+            </div>
+            <div class="card-body">
+                <p class="card-text">Status: <strong>{{ table.status|capitalize }}</strong></p>
+                <p class="card-text">Capacity: {{ table.capacity }}</p>
+                <p class="card-text">Active Orders: {{ table.active_order_count }}</p>
+                <p class="card-text fs-5">Current Total: <strong>${{ table.current_total_str }}</strong></p>
+
+                {% if table.active_order_count > 0 %}
+                    <a href="{{ url_for('billing.view_bill', table_id_str=table._id) }}" class="btn btn-primary w-100">View Bill / Pay</a>
+                {% elif table.status == 'occupied' %}
+                     <p class="small text-muted">Table is occupied, but no active orders found to bill.</p>
+                     {# Option to manually make available? Or link to create order? #}
+                     <a href="{{ url_for('orders.new_order', table_id=table._id) }}" class="btn btn-sm btn-outline-success">New Order for Table</a>
+                     <form action="{{ url_for('tables.set_table_status', table_id=table._id, new_status='available') }}" method="POST" class="d-inline-block ms-2">
+                         <button type="submit" class="btn btn-sm btn-outline-secondary" title="Mark as Available (use if status is incorrect)">Fix Status</button>
+                     </form>
+                {% else %}
+                    <p class="small text-muted">Table status is {{ table.status }}.</p> {# Should not happen based on query, but for safety #}
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-success">
+    <h4 class="alert-heading">All Clear!</h4>
+    <p>No tables currently require billing.</p>
+</div>
+{% endif %}
+{% endblock %}

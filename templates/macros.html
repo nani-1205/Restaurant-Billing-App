@@ -1,0 +1,39 @@
+{# templates/macros.html #}
+{% macro format_currency(value, currency_symbol='$') -%}
+  {% if value is number %}
+    {{ currency_symbol }}{{ "{:,.2f}".format(value | float) }}
+  {% else %}
+    {{ currency_symbol }}0.00 {# Or display N/A or original value #}
+  {% endif %}
+{%- endmacro %}
+
+{% macro render_pagination(pagination, endpoint, **kwargs) -%}
+  {% if pagination.pages > 1 %}
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      {# Previous Page Link #}
+      <li class="page-item {{ 'disabled' if not pagination.has_prev else '' }}">
+        <a class="page-link" href="{{ url_for(endpoint, page=pagination.prev_num, **kwargs) if pagination.has_prev else '#' }}" aria-label="Previous">
+          <span aria-hidden="true">«</span>
+        </a>
+      </li>
+      {# Page Numbers #}
+      {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+        {% if page_num %}
+          <li class="page-item {{ 'active' if page_num == pagination.page else '' }}">
+            <a class="page-link" href="{{ url_for(endpoint, page=page_num, **kwargs) }}">{{ page_num }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+      {% endfor %}
+      {# Next Page Link #}
+       <li class="page-item {{ 'disabled' if not pagination.has_next else '' }}">
+        <a class="page-link" href="{{ url_for(endpoint, page=pagination.next_num, **kwargs) if pagination.has_next else '#' }}" aria-label="Next">
+          <span aria-hidden="true">»</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+  {% endif %}
+{%- endmacro %}

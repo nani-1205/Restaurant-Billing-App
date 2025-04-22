@@ -1,96 +1,106 @@
 # app.py
+import os
 from flask import Flask, render_template, g
 from config import Config
-from modules.utils.database import init_db, get_db
-import logging
+from database import init_db, teardown_db, get_db
+from pymongo.errors import ConnectionFailure, OperationFailure
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-def create_app():
+def create_app(config_class=Config):
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(config_class)
 
-    # Initialize Database
-    with app.app_context():
-        try:
-            init_db(app)
-            logger.info("Database initialization sequence completed.")
-        except Exception as e:
-            logger.error(f"Failed to initialize database during app creation: {e}")
-            # Decide if the app should stop or continue without DB
-            # For this app, DB is critical, but we already exit in init_db on critical errors.
-            # If init_db returns None (e.g., auth failure), get_db() will raise errors later.
-
-    # Register Blueprints (Modules)
-    # Import blueprints AFTER app creation and DB init to avoid circular dependencies
-    # and ensure DB is available if blueprints access it upon import (less common)
+    # Ensure INSTANCE_FOLDER exists if needed for sessions etc.
     try:
-        from modules.auth.routes import auth_bp
-        from modules.menu.routes import menu_bp
-        from modules.tables.routes import tables_bp
-        from modules.orders.routes import orders_bp
-        from modules.billing.routes import billing_bp
-        from modules.kds.routes import kds_bp
-        from modules.employees.routes import employees_bp
-        # Import other blueprints (inventory, crm, reports) here
-        # from modules.inventory.routes import inventory_bp
-        # from modules.crm.routes import crm_bp
-        # from modules.reports.routes import reports_bp
+        os.makedirs(app.instance_path, exist_ok=True)
+    except OSError:
+        pass # Handle error if needed
 
-        app.register_blueprint(auth_bp, url_prefix='/auth')
-        app.register_blueprint(menu_bp, url_prefix='/menu')
-        app.register_blueprint(tables_bp, url_prefix='/tables')
-        app.register_blueprint(orders_bp, url_prefix='/orders')
-        app.register_blueprint(billing_bp, url_prefix='/billing')
-        app.register_blueprint(kds_bp, url_prefix='/kds')
-        app.register_blueprint(employees_bp, url_prefix='/employees')
-        # app.register_blueprint(inventory_bp, url_prefix='/inventory')
-        # app.register_blueprint(crm_bp, url_prefix='/crm')
-        # app.register_blueprint(reports_bp, url_prefix='/reports')
-        logger.info("Blueprints registered successfully.")
+    # Initialize Database within app context
+    # This ensures config is loaded before init_db is called
+    try:
+        with app.app_context():
+            init_db(app)
+    except (ConnectionFailure, OperationFailure, ValueError) as e:
+        # Handle critical DB connection error on startup
+        print(f"FATAL STARTUP ERROR: Could not initialize database connection: {e}")
+        # Depending on policy, might exit or run in a degraded state.
+        # For now, we make it hard to start without DB.
+        # You could replace raise with sys.exit(1) or allow it to run degraded.
+        raise RuntimeError(f"Application cannot start without database: {e}") from e
 
-    except ImportError as e:
-        logger.error(f"Failed to import or register blueprints: {e}")
-    except Exception as e:
-         logger.error(f"An unexpected error occurred during blueprint registration: {e}")
+    # Register teardown function to close DB connection when app context ends
+    app.teardown_appcontext(teardown_db)
 
+    # --- Register Blueprints ---
+    from modules.main.routes import bp as main_bp
+    app.register_blueprint(main_bp)
 
-    # --- Basic Routes ---
-    @app.route('/')
-    def index():
-        # Could show a dashboard here later
-        return render_template('index.html', title='Home')
+    from modules.menu.routes import bp as menu_bp
+    app.register_blueprint(menu_bp, url_prefix='/menu')
+
+    from modules.tables.routes import bp as tables_bp
+    app.register_blueprint(tables_bp, url_prefix='/tables')
+
+    from modules.orders.routes import bp as orders_bp
+    app.register_blueprint(orders_bp, url_prefix='/orders')
+
+    from modules.billing.routes import bp as billing_bp
+    app.register_blueprint(billing_bp, url_prefix='/billing')
+
+    from modules.inventory.routes import bp as inventory_bp
+    app.register_blueprint(inventory_bp, url_prefix='/inventory')
+
+    from modules.kds.routes import bp as kds_bp
+    app.register_blueprint(kds_bp) # url_prefix defined in blueprint __init__
+
+    from modules.crm.routes import bp as crm_bp
+    app.register_blueprint(crm_bp) # url_prefix defined in blueprint __init__
+
+    from modules.employees.routes import bp as employees_bp
+    app.register_blueprint(employees_bp) # url_prefix defined in blueprint __init__
+
+    from modules.reports.routes import bp as reports_bp
+    app.register_blueprint(reports_bp) # url_prefix defined in blueprint __init__
 
     # --- Error Handlers ---
     @app.errorhandler(404)
     def not_found_error(error):
-        return render_template('404.html'), 404
+        return render_template('errors/404.html'), 404
 
     @app.errorhandler(500)
     def internal_error(error):
-        # You might want to log the error details here
-        # db.session.rollback() # If using SQLAlchemy
-        logger.error(f"Internal server error: {error}", exc_info=True)
-        return render_template('500.html'), 500
+        # Log the error properly here in a real app
+        print(f"SERVER ERROR 500: {error}")
+        # You might want to close the DB connection explicitly on severe errors
+        # teardown_db(error) # Or rely on teardown_appcontext
+        return render_template('errors/500.html'), 500
 
-    # --- Request Context ---
-    # Optional: Make DB accessible via Flask's 'g' object
-    # @app.before_request
-    # def before_request():
-    #     g.db = get_db()
+    @app.errorhandler(Exception) # Catch other potential errors
+    def unhandled_exception(e):
+         # Log the exception e
+         print(f"UNHANDLED EXCEPTION: {e}")
+         # For specific DB errors during request handling, ensure connection is ok or closed
+         if isinstance(e, (ConnectionFailure, OperationFailure)):
+              teardown_db(e)
+         # Render a generic error page
+         return render_template('errors/500.html', error_message=str(e)), 500
 
-    # @app.teardown_appcontext
-    # def teardown_db(exception=None):
-    #     db = g.pop('db', None)
-    #     # Close DB connection if needed (MongoClient handles pooling)
-    #     # if db is not None:
-    #     #     db.client.close()
 
+    print("Flask application created successfully.")
     return app
 
-# --- Main Execution ---
+# --- Run the App ---
+# This part is for running the app directly using 'python app.py'
+# For production, use a WSGI server like Gunicorn or uWSGI:
+# gunicorn --bind 0.0.0.0:5000 app:create_app()
 if __name__ == '__main__':
-    app = create_app()
+    flask_app = create_app()
+    # Get host and port from environment or use defaults
+    host = os.environ.get('FLASK_RUN_HOST', '127.0.0.1')
+    port = int(os.environ.get('FLASK_RUN_PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
+
+    print(f" * Starting Flask server on http://{host}:{port}/")
+    print(f" * Debug mode: {'on' if debug_mode else 'off'}")
     # Use host='0.0.0.0' to make it accessible on your network
-    app.run(host='0.0.0.0', port=5000, debug=True) # Turn off debug in production!
+    flask_app.run(host=host, port=port, debug=debug_mode)
