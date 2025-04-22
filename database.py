@@ -4,12 +4,16 @@ from flask import current_app, g
 from pymongo.errors import ConnectionFailure, OperationFailure
 from decimal import Decimal # Import Decimal for potential use with specific types
 
+# --- Corrected Import for Type Hinting ---
+from pymongo.database import Database # Import the Database class specifically
+
 # Consider using Type Hints for better code clarity if using Python 3.7+
 from typing import Optional, List, Dict, Any
 
-# Global variable to hold the client and db (consider Flask-PyMongo for better context management)
+# Global variable to hold the client and db
 mongo_client: Optional[pymongo.MongoClient] = None
-db: Optional[pymongo.database.Database] = None
+# --- Corrected Type Hint ---
+db: Optional[Database] = None
 
 def init_db(app):
     """Initializes the MongoDB connection and checks/creates the database."""
@@ -59,7 +63,8 @@ def init_db(app):
         db = None
         raise e
 
-def ensure_collections_exist(database: pymongo.database.Database):
+# --- Corrected Type Hint in function signature ---
+def ensure_collections_exist(database: Database):
     """Checks if essential collections exist, logging if they will be auto-created."""
     required_collections: List[str] = [
         'menu_items', 'tables', 'orders', 'users', 'customers',
@@ -75,8 +80,8 @@ def ensure_collections_exist(database: pymongo.database.Database):
         # This can happen if the user doesn't have listCollections permission
         print(f"WARNING: Could not list collections (permission issue?): {e}. Collections will be created implicitly.")
 
-
-def create_indexes(database: pymongo.database.Database):
+# --- Corrected Type Hint in function signature ---
+def create_indexes(database: Database):
     """Creates recommended indexes for better performance."""
     print("INFO: Checking/creating database indexes...")
     try:
@@ -119,24 +124,15 @@ def create_indexes(database: pymongo.database.Database):
     except Exception as e:
          print(f"ERROR: Unexpected error during index creation: {e}")
 
-
-def get_db() -> pymongo.database.Database:
+# --- Corrected Type Hint for return value ---
+def get_db() -> Database:
     """
     Returns the MongoDB database instance for the current application context.
     Raises an exception if the database is not initialized.
     """
-    # Use Flask's 'g' object for context-local storage if preferred, but direct global access is simpler here
     if db is None:
-        # This should ideally not happen if init_db is called correctly at startup
         print("ERROR: get_db() called but database is not initialized.")
-        # Option 1: Raise error (safer)
         raise RuntimeError("Database is not initialized. Check application startup.")
-        # Option 2: Try to re-initialize (might hide underlying issues)
-        # try:
-        #     init_db(current_app)
-        #     if db is None: raise RuntimeError("Database re-initialization failed.")
-        # except Exception as e:
-        #     raise RuntimeError(f"Failed to initialize database on demand: {e}")
     return db
 
 def close_db(e=None):
