@@ -15,35 +15,42 @@
         </div>
         <div class="card-body">
              <ul class="list-group list-group-flush">
-                {% for item in order.items %}
+                {# --- FIX APPLIED HERE --- #}
+                {% for item in order.get('items', []) %} {# Use get() for safety #}
                     {% if item.status != 'cancelled' %} {# Don't show cancelled items on bill #}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>{{ item.quantity }} x {{ item.name }}</span>
-                        <span>₹{{ "%.2f"|format(item.price * item.quantity) }}</span> {# <-- Currency symbol updated here #}
+                        <span>₹{{ "%.2f"|format(item.price * item.quantity) }}</span>
                     </li>
                     {% endif %}
+                {% else %}
+                     <li class="list-group-item">No items found in this order.</li>
                 {% endfor %}
+                {# --- END OF FIX AREA --- #}
              </ul>
         </div>
         <div class="card-footer">
              <ul class="list-group list-group-flush">
                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span>Subtotal</span>
-                    <strong>₹{{ "%.2f"|format(order.subtotal) }}</strong> {# <-- Currency symbol updated here #}
+                    {# Use get() for safety #}
+                    <strong>₹{{ "%.2f"|format(order.get('subtotal', 0.0)) }}</strong>
                  </li>
                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span>Tax ({{ tax_rate }}%)</span>
-                    <strong>₹{{ "%.2f"|format(order.tax) }}</strong> {# <-- Currency symbol updated here #}
+                     {# Use get() for safety #}
+                    <strong>₹{{ "%.2f"|format(order.get('tax', 0.0)) }}</strong>
                  </li>
                  {% if bill and bill.discount > 0 %}
                   <li class="list-group-item d-flex justify-content-between align-items-center text-danger">
                     <span>Discount Applied</span>
-                    <strong>-₹{{ "%.2f"|format(bill.discount) }}</strong> {# <-- Currency symbol updated here #}
+                    <strong>-₹{{ "%.2f"|format(bill.discount) }}</strong>
                  </li>
                  {% endif %}
                   <li class="list-group-item d-flex justify-content-between align-items-center fw-bold fs-5">
                     <span>Total Amount</span>
-                    <span>₹{{ "%.2f"|format(bill.total_amount if bill else order.total_amount) }}</span> {# <-- Currency symbol updated here #}
+                     {# Use get() for safety, prefer bill total if available #}
+                    <span>₹{{ "%.2f"|format(bill.total_amount if bill else order.get('total_amount', 0.0)) }}</span>
                  </li>
              </ul>
         </div>
@@ -65,7 +72,7 @@
                          </select>
                      </div>
                       <div class="col-md-3">
-                        <label for="discount" class="form-label">Discount (₹)</label> {# <-- Currency symbol updated in label #}
+                        <label for="discount" class="form-label">Discount (₹)</label>
                         <input type="number" step="0.01" min="0" class="form-control" id="discount" name="discount" value="0.00">
                     </div>
                      <div class="col-md-auto">
@@ -84,6 +91,7 @@
      <div class="mt-4">
         <a href="{{ url_for('billing') }}" class="btn btn-secondary">Back to Billing List</a>
          <!-- Add a Print button later if needed -->
+         {# <button class="btn btn-outline-primary" onclick="window.print();">Print Bill</button> #}
     </div>
 
 {% endblock %}
