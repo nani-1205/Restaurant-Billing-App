@@ -163,11 +163,13 @@ def inject_config():
     }
     return dict(config=safe_config)
 
+# --->>> CONTEXT PROCESSOR TO FIX 'now' UNDEFINED ERROR <<<---
 @app.context_processor
 def inject_current_year():
     """Injects the current year into all templates."""
     # Using UTC is generally safer for server-side timestamps
     return {'current_year': datetime.utcnow().year}
+# --->>> END OF CONTEXT PROCESSOR <<<---
 
 
 # --- Routes ---
