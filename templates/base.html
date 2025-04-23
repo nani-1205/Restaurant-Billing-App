@@ -39,29 +39,54 @@
                     </li>
                 </ul>
                 <!-- Add Login/Logout links here if implementing user auth -->
+                <!-- Example:
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <span class="navbar-text me-2">User: {{ current_user.username }}</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                    </li>
+                    {% endif %}
+                </ul>
+                -->
             </div>
         </div>
     </nav>
 
     <div class="container">
+        {# Flash Messages Section #}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {# Map category to Bootstrap alert class #}
+                {% set alert_class = 'alert-' + category if category in ['success', 'warning', 'danger', 'info'] else 'alert-secondary' %}
+                <div class="alert {{ alert_class }} alert-dismissible fade show" role="alert">
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
+        {# End Flash Messages Section #}
 
+        {# Main Content Block #}
         {% block content %}
         {% endblock %}
+        {# End Main Content Block #}
     </div>
 
+    {# Footer Section #}
     <footer class="mt-5 mb-3 text-center text-muted">
-        © {{ now().year }} Restaurant Billing App
+        <!-- CORRECTED LINE using current_year variable -->
+        © {{ current_year }} Restaurant Billing App
     </footer>
+    {# End Footer Section #}
 
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
