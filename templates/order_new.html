@@ -2,7 +2,7 @@
 {% block title %}New Order for Table {{ table.table_number }}{% endblock %}
 
 {% block content %}
-    <h2>Start New Order - Table {{ table.table_number }}</h2>
+    <h2><i class="fas fa-plus-circle me-2"></i>Start New Order - Table {{ table.table_number }}</h2>
     <p class="text-muted">Capacity: {{ table.capacity }} | Current Status: {{ table.status|capitalize }}</p>
     <hr>
 
@@ -10,23 +10,23 @@
     <form action="{{ url_for('order_new', table_id=table._id) }}" method="POST">
         <div class="card mb-4">
             <div class="card-header">
-                Select Initial Items (Optional)
+                <i class="fas fa-concierge-bell me-2"></i>Select Initial Items (Optional)
             </div>
             <div class="card-body">
                 {% if menu_items %}
                     {% for item in menu_items %}
-                        <div class="row mb-2 align-items-center">
-                            <div class="col-md-8">
-                                {# --- FIX APPLIED HERE --- #}
-                                <label for="item_{{ item._id }}" class="form-label">{{ item.name }} (₹{{ "%.2f"|format(item.price) }})</label>
+                        <div class="row mb-2 g-2 align-items-center">
+                             {# Make label span wider #}
+                            <div class="col-sm-8 col-md-9">
+                                <label for="item_{{ item._id }}" class="form-label mb-0">{{ item.name }} (<span class="currency-symbol">₹</span><span class="price-text">{{ "%.2f"|format(item.price) }}</span>)</label>
                             </div>
-                            <div class="col-md-4">
-                                {# Use item._id in the name attribute to easily identify quantities in the POST request #}
-                                <input type="number" class="form-control form-control-sm" id="item_{{ item._id }}" name="quantity_{{ item._id }}" value="0" min="0">
+                            {# Make input span narrower #}
+                            <div class="col-sm-4 col-md-3">
+                                <input type="number" class="form-control form-control-sm price-text" id="item_{{ item._id }}" name="quantity_{{ item._id }}" value="0" min="0" aria-label="Quantity for {{item.name}}">
                             </div>
                         </div>
                     {% endfor %}
-                     <p class="form-text mt-3">Enter quantity for items to add initially. Leave as 0 to skip.</p>
+                     <p class="form-text text-muted mt-3"><i class="fas fa-info-circle me-1"></i>Enter quantity for items to add initially. Leave as 0 to skip.</p>
                 {% else %}
                     <p class="text-muted">No menu items available to add.</p>
                 {% endif %}
@@ -34,18 +34,18 @@
         </div>
 
         <div class="mt-3">
-            <button type="submit" class="btn btn-success">Start Order</button>
-            <a href="{{ url_for('tables_manage') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success"><i class="fas fa-play me-1"></i>Start Order</button>
+            <a href="{{ url_for('tables_manage') }}" class="btn btn-secondary"><i class="fas fa-times me-1"></i>Cancel</a>
         </div>
     </form>
     {% else %}
         <div class="alert alert-warning">
-            Cannot start a new order. Table {{ table.table_number }} is currently {{ table.status }}.
+           <i class="fas fa-exclamation-triangle me-2"></i> Cannot start a new order. Table {{ table.table_number }} is currently {{ table.status }}.
              {% if table.status == 'occupied' and table.current_order_id %}
-                 <a href="{{ url_for('order_view', order_id=table.current_order_id) }}">View existing order?</a>
+                 <a href="{{ url_for('order_view', order_id=table.current_order_id) }}" class="alert-link">View existing order?</a>
              {% endif %}
         </div>
-         <a href="{{ url_for('tables_manage') }}" class="btn btn-secondary">Back to Tables</a>
+         <a href="{{ url_for('tables_manage') }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Tables</a>
     {% endif %}
 
 {% endblock %}

@@ -2,55 +2,56 @@
 {% block title %}Bill for Order {{ order._id }}{% endblock %}
 
 {% block content %}
-    <h2>Bill Details - Table {{ order.table_number }}</h2>
-    <p class="text-muted">Order ID: {{ order._id }} | Status: {{ order.status|capitalize }}</p>
-    {% if bill %}
-     <p class="text-success"><strong>Billed On:</strong> {{ bill.billed_at.strftime('%Y-%m-%d %H:%M') if bill.billed_at else 'N/A' }} | <strong>Payment:</strong> {{ bill.payment_method }}</p>
-    {% endif %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="fas fa-file-invoice-dollar me-2"></i>Bill Details - Table {{ order.table_number }}</h2>
+        <span class="badge bg-{{ 'success' if order.status == 'billed' else 'warning' }} p-2 fs-6">{{ order.status|capitalize }}</span>
+    </div>
+     <p class="text-muted">
+        <i class="fas fa-fingerprint me-1"></i>Order ID: {{ order._id }}
+        {% if bill %}
+         | <i class="fas fa-check-circle me-1 text-success"></i><strong class="text-success">Billed On:</strong> {{ bill.billed_at.strftime('%Y-%m-%d %H:%M') if bill.billed_at else 'N/A' }} | <strong>Payment:</strong> {{ bill.payment_method }}
+        {% endif %}
+    </p>
     <hr>
 
-    <div class="card">
+    <div class="card mb-4">
         <div class="card-header">
-            Order Summary
+           <i class="fas fa-list-alt me-2"></i> Order Summary
         </div>
-        <div class="card-body">
+        {# Remove body padding for flush list #}
+        <div class="p-0">
              <ul class="list-group list-group-flush">
-                {# --- FIX APPLIED HERE --- #}
-                {% for item in order.get('items', []) %} {# Use get() for safety #}
+                {% for item in order.get('items', []) %}
                     {% if item.status != 'cancelled' %} {# Don't show cancelled items on bill #}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>{{ item.quantity }} x {{ item.name }}</span>
-                        <span>₹{{ "%.2f"|format(item.price * item.quantity) }}</span>
+                        <span class="price-text"><span class="currency-symbol">₹</span>{{ "%.2f"|format(item.price * item.quantity) }}</span>
                     </li>
                     {% endif %}
                 {% else %}
-                     <li class="list-group-item">No items found in this order.</li>
+                     <li class="list-group-item text-muted text-center">No items found in this order.</li>
                 {% endfor %}
-                {# --- END OF FIX AREA --- #}
              </ul>
         </div>
         <div class="card-footer">
              <ul class="list-group list-group-flush">
                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span>Subtotal</span>
-                    {# Use get() for safety #}
-                    <strong>₹{{ "%.2f"|format(order.get('subtotal', 0.0)) }}</strong>
+                    <strong class="price-text"><span class="currency-symbol">₹</span>{{ "%.2f"|format(order.get('subtotal', 0.0)) }}</strong>
                  </li>
                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span>Tax ({{ tax_rate }}%)</span>
-                     {# Use get() for safety #}
-                    <strong>₹{{ "%.2f"|format(order.get('tax', 0.0)) }}</strong>
+                    <strong class="price-text"><span class="currency-symbol">₹</span>{{ "%.2f"|format(order.get('tax', 0.0)) }}</strong>
                  </li>
                  {% if bill and bill.discount > 0 %}
                   <li class="list-group-item d-flex justify-content-between align-items-center text-danger">
-                    <span>Discount Applied</span>
-                    <strong>-₹{{ "%.2f"|format(bill.discount) }}</strong>
+                    <span><i class="fas fa-tags me-1"></i>Discount Applied</span>
+                    <strong class="price-text">-<span class="currency-symbol">₹</span>{{ "%.2f"|format(bill.discount) }}</strong>
                  </li>
                  {% endif %}
                   <li class="list-group-item d-flex justify-content-between align-items-center fw-bold fs-5">
                     <span>Total Amount</span>
-                     {# Use get() for safety, prefer bill total if available #}
-                    <span>₹{{ "%.2f"|format(bill.total_amount if bill else order.get('total_amount', 0.0)) }}</span>
+                    <span class="price-text"><span class="currency-symbol">₹</span>{{ "%.2f"|format(bill.total_amount if bill else order.get('total_amount', 0.0)) }}</span>
                  </li>
              </ul>
         </div>
@@ -58,25 +59,26 @@
 
     {% if order.status == 'closed' %} {# Show payment form only if not yet billed #}
     <div class="card mt-4">
-        <div class="card-header">Finalize Payment</div>
+        <div class="card-header"><i class="fas fa-credit-card me-2"></i>Finalize Payment</div>
         <div class="card-body">
              <form action="{{ url_for('bill_finalize', order_id=order._id) }}" method="POST">
                  <div class="row g-3 align-items-end">
-                     <div class="col-md-4">
-                         <label for="payment_method" class="form-label">Payment Method</label>
+                     <div class="col-md-5">
+                         <label for="payment_method" class="form-label"><i class="fas fa-money-check-alt me-1"></i>Payment Method</label>
                          <select class="form-select" id="payment_method" name="payment_method">
                              <option value="Cash" selected>Cash</option>
                              <option value="Card">Card</option>
+                             <option value="UPI">UPI</option> {# Added UPI #}
                              <option value="Online">Online</option>
                              <option value="Other">Other</option>
                          </select>
                      </div>
-                      <div class="col-md-3">
-                        <label for="discount" class="form-label">Discount (₹)</label>
-                        <input type="number" step="0.01" min="0" class="form-control" id="discount" name="discount" value="0.00">
+                      <div class="col-md-4">
+                        <label for="discount" class="form-label"><i class="fas fa-tags me-1"></i>Discount (<span class="currency-symbol">₹</span>)</label>
+                        <input type="number" step="0.01" min="0" class="form-control price-text" id="discount" name="discount" value="0.00">
                     </div>
-                     <div class="col-md-auto">
-                        <button type="submit" class="btn btn-success">Mark as Paid & Finalize</button>
+                     <div class="col-md-3">
+                        <button type="submit" class="btn btn-success w-100"><i class="fas fa-check-circle me-1"></i>Mark as Paid</button>
                      </div>
                  </div>
              </form>
@@ -84,14 +86,15 @@
     </div>
     {% elif order.status == 'billed' %}
         <div class="alert alert-success mt-4" role="alert">
-          This bill has been finalized and paid.
+          <i class="fas fa-check-circle me-2"></i>This bill has been finalized and paid.
         </div>
     {% endif %}
 
      <div class="mt-4">
-        <a href="{{ url_for('billing') }}" class="btn btn-secondary">Back to Billing List</a>
-         <!-- Add a Print button later if needed -->
-         {# <button class="btn btn-outline-primary" onclick="window.print();">Print Bill</button> #}
+        <a href="{{ url_for('billing') }}" class="btn btn-secondary"><i class="fas fa-arrow-left me-1"></i>Back to Billing List</a>
+         <button class="btn btn-outline-primary ms-2" onclick="window.print();" title="Print Bill">
+             <i class="fas fa-print me-1"></i>Print
+         </button>
     </div>
 
 {% endblock %}

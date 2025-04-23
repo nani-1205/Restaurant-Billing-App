@@ -1,32 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Kitchen Display System (KDS){% endblock %}
 
-{% block head_extra %}
-<style>
-.kds-card { margin-bottom: 1rem; }
-.kds-item { padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
-/* Add some basic visual distinction */
-.card-status-pending { border-left: 5px solid orange; }
-.card-status-preparing { border-left: 5px solid blue; }
-
-.status-text-pending { font-weight: bold; color: orange; }
-.status-text-preparing { font-weight: bold; color: blue; }
-
-/* Style buttons */
-.kds-actions form { display: inline-block; margin-right: 5px; }
-</style>
-<!-- Remove meta refresh if using AJAX/JS refresh -->
-<!-- <meta http-equiv="refresh" content="30"> -->
-{% endblock %}
-
-
 {% block content %}
-    <h2>Kitchen Display System (KDS)</h2>
-    <p class="text-muted">Showing items with status 'Pending' or 'Preparing' from open orders. Updates occur after button clicks.</p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-kitchen-set me-2"></i>Kitchen Display System (KDS)</h2>
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.location.reload();">
+            <i class="fas fa-sync-alt me-1"></i>Refresh
+        </button>
+    </div>
+     <p class="text-muted">Showing items with status 'Pending' or 'Preparing' from open orders.</p>
      <hr>
 
      {% if db_error %}
-        <div class="alert alert-danger">Database connection error. KDS cannot load items.</div>
+        <div class="alert alert-danger"><i class="fas fa-database me-2"></i>Database connection error. KDS cannot load items.</div>
      {% elif kds_items %}
         <div class="row">
         {% for item in kds_items %}
@@ -34,9 +20,9 @@
                 {# Add status class to card for visual cue #}
                 <div class="card kds-card card-status-{{ item.status|lower }}">
                     <div class="card-header bg-light">
-                        <strong>Table: {{ item.table_number }}</strong>
-                        <small class="text-muted float-end" title="{{ item.order_time.strftime('%Y-%m-%d %H:%M:%S') if item.order_time else 'N/A' }}">
-                           {{ item.order_time.strftime('%H:%M:%S') if item.order_time else 'N/A' }}
+                        <strong><i class="fas fa-chair me-1"></i>Table: {{ item.table_number }}</strong>
+                        <small class="text-muted" title="{{ item.order_time.strftime('%Y-%m-%d %H:%M:%S') if item.order_time else 'N/A' }}">
+                           <i class="fas fa-clock me-1"></i>{{ item.order_time.strftime('%H:%M:%S') if item.order_time else 'N/A' }}
                         </small>
                     </div>
                     <div class="card-body">
@@ -49,20 +35,20 @@
                                  {# Add class 'kds-status-form' for JS #}
                                  <form action="{{ url_for('order_update_item_status', order_id=item.order_id, item_index=item.item_index) }}" method="POST" class="d-inline kds-status-form">
                                      <input type="hidden" name="status" value="preparing">
-                                     <button type="submit" class="btn btn-primary">Start Preparing</button>
+                                     <button type="submit" class="btn btn-primary"><i class="fas fa-fire me-1"></i>Start Preparing</button>
                                  </form>
                                 {% elif item.status == 'preparing' %}
                                  {# Add class 'kds-status-form' for JS #}
                                  <form action="{{ url_for('order_update_item_status', order_id=item.order_id, item_index=item.item_index) }}" method="POST" class="d-inline kds-status-form">
                                      <input type="hidden" name="status" value="served">
-                                     <button type="submit" class="btn btn-success">Mark Served</button>
+                                     <button type="submit" class="btn btn-success"><i class="fas fa-check-circle me-1"></i>Mark Served</button>
                                  </form>
                                 {% endif %}
                                  {# Cancel button (only if not served) - Add class 'kds-status-form' for JS #}
                                  {% if item.status != 'served' %}
                                  <form action="{{ url_for('order_update_item_status', order_id=item.order_id, item_index=item.item_index) }}" method="POST" class="d-inline kds-status-form" data-confirm="Cancel this item?"> {# Add confirmation message #}
                                      <input type="hidden" name="status" value="cancelled">
-                                     <button type="submit" class="btn btn-outline-danger">Cancel</button>
+                                     <button type="submit" class="btn btn-outline-danger"><i class="fas fa-times me-1"></i>Cancel</button>
                                  </form>
                                  {% endif %}
                             </div>
@@ -73,16 +59,17 @@
         {% endfor %}
         </div>
     {% else %}
-        <div class="alert alert-info">No pending items for the kitchen right now.</div>
+        <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No pending items for the kitchen right now.</div>
     {% endif %}
 {% endblock %}
 
 {% block scripts_extra %}
+{# Keep the existing AJAX script #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.kds-status-form').forEach(form => {
         form.addEventListener('submit', function(event) {
-            event.preventDefault(); // Stop the default form submission (page navigation)
+            event.preventDefault(); // Stop the default form submission
 
             // Optional Confirmation Dialog
             const confirmationMessage = form.getAttribute('data-confirm');
@@ -91,9 +78,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const button = form.querySelector('button[type="submit"]');
-            const originalButtonText = button.innerHTML;
+            const originalButtonHTML = button.innerHTML; // Store full HTML
             button.disabled = true;
-            button.innerHTML = '...'; // Indicate processing
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...'; // Bootstrap spinner with text
 
             const formData = new FormData(form);
             const actionUrl = form.action;
@@ -101,14 +88,11 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(actionUrl, {
                 method: 'POST',
                 body: formData,
-                headers: {
-                    'Accept': 'application/json' // Indicate we prefer JSON response
-                }
+                headers: { 'Accept': 'application/json' }
             })
             .then(response => {
                 if (!response.ok) {
-                    // Try to parse error from JSON response, otherwise use status text
-                    return response.json().catch(() => null).then(errData => {
+                     return response.json().catch(() => null).then(errData => {
                          throw new Error(errData?.error || `HTTP error! Status: ${response.status}`);
                     });
                 }
@@ -116,32 +100,17 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(data => {
                 if (data.success) {
-                    // --- SUCCESS ---
-                    // Simple approach: Reload the KDS page to show the updated state
                     console.log('Status update successful, reloading KDS...');
                     window.location.reload();
-
-                    // More complex approach (alternative): Update UI dynamically
-                    // This requires finding the specific card/item and changing its text/buttons
-                    // Example (pseudo-code):
-                    // const card = form.closest('.kds-card');
-                    // card.querySelector('.status-text').textContent = data.new_status.charAt(0).toUpperCase() + data.new_status.slice(1);
-                    // Update buttons based on new_status...
-                    // button.disabled = false; // Re-enable original button if needed
-                    // button.innerHTML = originalButtonText; // Restore text if needed
-
                 } else {
-                    // --- FAILURE ---
                     throw new Error(data.error || 'Unknown error updating status.');
                 }
             })
             .catch(error => {
-                // --- CATCH ALL ERRORS ---
                 console.error('Error updating item status:', error);
                 alert('Error: ' + error.message);
-                // Restore button state on error
                 button.disabled = false;
-                button.innerHTML = originalButtonText;
+                button.innerHTML = originalButtonHTML; // Restore original button content
             });
         });
     });

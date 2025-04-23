@@ -2,29 +2,35 @@
 {% block title %}Billing - Pending Bills{% endblock %}
 
 {% block content %}
-<h2>Pending Bills (Closed Orders)</h2>
-<p class="text-muted">These orders are closed and ready for payment finalization.</p>
-<hr>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-file-invoice-dollar me-2"></i>Pending Bills</h2>
+    </div>
+    <p class="text-muted">These orders are closed and ready for payment finalization.</p>
+    <hr>
 
-{% if orders %}
-<div class="list-group">
-    {% for order in orders %}
-    <a href="{{ url_for('bill_view', order_id=order._id) }}" class="list-group-item list-group-item-action flex-column align-items-start">
-        <div class="d-flex w-100 justify-content-between">
-            <h5 class="mb-1">Order for Table {{ order.table_number }}</h5>
-            <small class="text-muted">Closed: {{ order.closed_time.strftime('%Y-%m-%d %H:%M') if order.closed_time else 'N/A' }}</small>
-        </div>
-        <p class="mb-1">
-           Total Amount: <strong>₹{{ "%.2f"|format(order.total_amount) }}</strong>
-           {# --- FIX APPLIED HERE --- #}
-           ({{ order.get('items', [])|length }} item(s))
-        </p>
-        <small class="text-muted">Order ID: {{ order._id }}</small>
-    </a>
-    {% endfor %}
-</div>
-{% else %}
-<div class="alert alert-info">No orders are currently waiting for billing.</div>
-{% endif %}
+    {% if db_error and not orders %}
+        <div class="alert alert-danger"><i class="fas fa-database me-2"></i>Database error fetching bills.</div>
+    {% elif orders %}
+    <div class="list-group">
+        {% for order in orders %}
+        <a href="{{ url_for('bill_view', order_id=order._id) }}" class="list-group-item list-group-item-action flex-column align-items-start">
+            <div class="d-flex w-100 justify-content-between">
+                <h5 class="mb-1"><i class="fas fa-receipt me-2"></i>Order for Table {{ order.table_number }}</h5>
+                <small class="text-muted" title="{{ order.closed_time.strftime('%Y-%m-%d %H:%M:%S') if order.closed_time else 'N/A' }}">
+                    <i class="fas fa-lock me-1"></i>Closed: {{ order.closed_time.strftime('%H:%M') if order.closed_time else 'N/A' }}
+                </small>
+            </div>
+            <p class="mb-1 mt-1">
+               Total Amount: <strong class="price-text"><span class="currency-symbol">₹</span>{{ "%.2f"|format(order.total_amount) }}</strong>
+               <span class="text-muted mx-2">|</span>
+               <span>({{ order.get('items', [])|length }} item(s))</span>
+            </p>
+            <small class="text-muted"><i class="fas fa-fingerprint me-1"></i>Order ID: {{ order._id }}</small>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>No orders are currently waiting for billing.</div>
+    {% endif %}
 
 {% endblock %}

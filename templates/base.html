@@ -3,57 +3,88 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Restaurant Billing{% endblock %}</title>
+    <title>{% block title %}Restaurant POS{% endblock %}</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <!-- Optional Custom CSS -->
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('index') }}">Restaurant POS</a>
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4 sticky-top"> {# Removed bg-dark as it's handled by custom CSS #}
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-utensils me-2"></i>Restaurant POS
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">Dashboard</a>
+                        <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
+                            <i class="fas fa-tachometer-alt"></i> Dashboard {# Swapped icon #}
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'menu_manage' %}active{% endif %}" href="{{ url_for('menu_manage') }}">Menu</a>
+                        <a class="nav-link {% if request.endpoint == 'menu_manage' %}active{% endif %}" href="{{ url_for('menu_manage') }}">
+                            <i class="fas fa-book-open"></i> Menu
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'tables_manage' %}active{% endif %}" href="{{ url_for('tables_manage') }}">Tables</a>
+                        <a class="nav-link {% if request.endpoint == 'tables_manage' %}active{% endif %}" href="{{ url_for('tables_manage') }}">
+                            <i class="fas fa-chair"></i> Tables
+                        </a>
                     </li>
-                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'kds' %}active{% endif %}" href="{{ url_for('kds') }}">KDS</a>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'kds' %}active{% endif %}" href="{{ url_for('kds') }}">
+                            <i class="fas fa-kitchen-set"></i> KDS
+                        </a>
                     </li>
-                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'billing' %}active{% endif %}" href="{{ url_for('billing') }}">Billing</a>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'billing' %}active{% endif %}" href="{{ url_for('billing') }}">
+                            <i class="fas fa-file-invoice-dollar"></i> Billing {# Changed icon #}
+                        </a>
                     </li>
-                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}" href="{{ url_for('reports') }}">Reports</a>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}" href="{{ url_for('reports') }}">
+                            <i class="fas fa-chart-line"></i> Reports
+                        </a>
                     </li>
                 </ul>
-
-                <!-- User Authentication section (Login/Logout) removed for now. -->
-                <!-- Implement Flask-Login or similar and add relevant links here later. -->
-
+                <div class="d-flex align-items-center">
+                    {# Display DB Status Indicator #}
+                    {% if db_status_ok %}
+                        <span class="navbar-text me-3" title="Database Connected">
+                            <i class="fas fa-database text-success"></i>
+                        </span>
+                    {% else %}
+                         <span class="navbar-text me-3" title="Database Connection Error">
+                            <i class="fas fa-database text-danger"></i>
+                        </span>
+                    {% endif %}
+                    {# Display Current Time #}
+                    <span class="navbar-text">
+                        <i class="fas fa-clock me-1"></i>
+                        <span id="currentTime">--:--</span> {# Placeholder #}
+                    </span>
+                    {# Add Login/User info here later #}
+                </div>
             </div>
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container fade-in">
         {# Flash Messages Section #}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                 {# Map category to Bootstrap alert class #}
                 {% set alert_class = 'alert-' + category if category in ['success', 'warning', 'danger', 'info'] else 'alert-secondary' %}
-                <div class="alert {{ alert_class }} alert-dismissible fade show" role="alert">
+                <div class="alert {{ alert_class }} alert-dismissible fade show mt-3" role="alert"> {# Added mt-3 #}
+                    <i class="fas {% if category == 'success' %}fa-check-circle{% elif category == 'warning' %}fa-exclamation-triangle{% elif category == 'danger' %}fa-times-circle{% else %}fa-info-circle{% endif %} me-2"></i>
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -69,14 +100,53 @@
     </div>
 
     {# Footer Section #}
-    <footer class="mt-5 mb-3 text-center text-muted">
-        © {{ current_year }} Restaurant Billing App {# Uses variable from context processor #}
+    <footer class="mt-auto py-3 text-center"> {# Removed bg-light, using default body bg #}
+        <div class="container">
+             {# Use current_year from context #}
+            <p class="mb-0 text-muted">© {{ current_year }} Restaurant POS App | <i class="fas fa-code me-1"></i> with <i class="fas fa-heart text-danger mx-1"></i></p>
+        </div>
     </footer>
     {# End Footer Section #}
 
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
-    <!-- Optional Custom JS -->
+
+    <!-- Common JavaScript -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update current time display
+        function updateTime() {
+            const timeElement = document.getElementById('currentTime');
+            if (timeElement) {
+                const now = new Date();
+                // Format HH:MM AM/PM (adjust locale/options as needed)
+                const timeString = now.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: true });
+                timeElement.textContent = timeString;
+            }
+        }
+        updateTime(); // Initial call
+        setInterval(updateTime, 30000); // Update every 30 seconds
+
+        // Add price-text class for consistent styling (if not already applied)
+        document.querySelectorAll('span[class*="currency-symbol"]').forEach(el => {
+            const parent = el.parentElement;
+            if (parent && !parent.classList.contains('price-text')) {
+                 // Find the sibling or parent element containing the number if needed
+                 // This might need adjustment depending on exact structure
+                 parent.classList.add('price-text');
+            } else if (el.nextElementSibling && !el.nextElementSibling.classList.contains('price-text')) {
+                 el.nextElementSibling.classList.add('price-text');
+            }
+        });
+
+        // Initialize Bootstrap tooltips if needed anywhere
+        // var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        // var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        //   return new bootstrap.Tooltip(tooltipTriggerEl)
+        // })
+    });
+    </script>
+
     {% block scripts_extra %}{% endblock %}
 </body>
 </html>

@@ -1,77 +1,686 @@
-/* static/css/style.css */
-
-body {
-    padding-bottom: 60px; /* Add padding to bottom to prevent footer overlap */
-     background-color: #f8f9fa; /* Slightly off-white background */
-}
-
-/* Navbar styling */
-.navbar {
-    box-shadow: 0 2px 4px rgba(0,0,0,.1);
-}
-
-/* Card styling */
-.card {
-    border: 1px solid #dee2e6;
-    box-shadow: 0 1px 3px rgba(0,0,0,.05);
-}
-
-/* Table status colors (matches JS, ensures consistency) */
-.table-card.status-available { border-left: 5px solid var(--bs-success); }
-.table-card.status-occupied { border-left: 5px solid var(--bs-danger); }
-.table-card.status-reserved { border-left: 5px solid var(--bs-warning); }
-.table-card.status-cleaning { border-left: 5px solid var(--bs-info); }
-
-.status-badge-available { background-color: var(--bs-success) !important; }
-.status-badge-occupied { background-color: var(--bs-danger) !important; }
-.status-badge-reserved { background-color: var(--bs-warning) !important; color: var(--bs-dark) !important; }
-.status-badge-cleaning { background-color: var(--bs-info) !important; color: var(--bs-dark) !important; }
-
-
-/* KDS Card improvements */
-.kds-card {
-    margin-bottom: 1rem;
-    border-left: 4px solid #6c757d; /* Default border */
-}
-.kds-card .card-header {
+/* Enhanced static/css/style.css */
+:root {
+    /* Color palette */
+    --primary-color: #3b82f6;
+    --primary-dark: #2563eb;
+    --accent-color: #f59e0b;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --info-color: #3b82f6; /* Using primary for info for consistency */
+    --neutral-bg: #f8fafc; /* Light grey background */
+    --neutral-card: #ffffff; /* White cards */
+    --neutral-text: #334155; /* Dark grey text */
+    --light-border: #e2e8f0; /* Light border color */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --border-radius: 0.375rem; /* Slightly smaller radius */
+  }
+  
+  /* Base Styles */
+  body {
+    padding-bottom: 70px; /* Space for footer */
+    background-color: var(--neutral-bg);
+    color: var(--neutral-text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    line-height: 1.6;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: #1e293b; /* Slightly darker heading color */
+  }
+  
+  /* Navbar styling */
+  .navbar {
+    box-shadow: var(--shadow-md);
+    background-color: #1e293b !important; /* Dark navbar background */
+    padding: 0.75rem 1rem;
+  }
+  
+  .navbar-brand {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.5rem 0;
+  }
+  .navbar-brand i {
+      color: var(--accent-color); /* Accent color for brand icon */
+  }
+  
+  .navbar .nav-link {
+    font-weight: 500;
+    padding: 0.5rem 1rem !important;
+    position: relative;
+    transition: color 0.2s ease;
+    color: rgba(255, 255, 255, 0.8); /* Lighter text for dark navbar */
+  }
+  .navbar .nav-link:hover {
+    color: rgba(255, 255, 255, 1);
+  }
+  .navbar .nav-link i {
+      margin-right: 0.5rem !important;
+  }
+  
+  .navbar .nav-link.active {
+      color: #ffffff; /* White active link */
+  }
+  
+  .navbar .nav-link.active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 3px;
+    background-color: var(--accent-color); /* Accent color underline */
+    border-radius: 2px;
+  }
+  .navbar-text {
+      color: rgba(255, 255, 255, 0.7); /* Lighter color for navbar text like time */
+  }
+  .navbar-text i {
+      color: var(--accent-color);
+  }
+  
+  /* Cards */
+  .card {
+    border-radius: var(--border-radius);
+    border: 1px solid var(--light-border);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    background-color: var(--neutral-card);
+    overflow: hidden; /* Prevent content overflow */
+  }
+  
+  .card:hover {
+    box-shadow: var(--shadow-md);
+  }
+  
+  .card-header {
+    background-color: rgba(241, 245, 249, 0.7); /* Slightly transparent header */
+    font-weight: 600;
+    padding: 0.75rem 1.25rem; /* Adjusted padding */
+    border-bottom: 1px solid var(--light-border);
+    color: #1e293b;
+  }
+  
+  .card-body {
+    padding: 1.25rem;
+  }
+  
+  .card-footer {
+    background-color: rgba(241, 245, 249, 0.5);
+    padding: 0.75rem 1.25rem; /* Adjusted padding */
+    border-top: 1px solid var(--light-border);
+  }
+  
+  /* Table Management Card Specifics */
+  .table-card {
+    position: relative;
+    transition: all 0.3s ease;
+    border-left-width: 5px;
+    border-left-style: solid;
+  }
+  
+  .table-card.status-available {
+    border-left-color: var(--success-color);
+  }
+  .table-card.status-occupied {
+    border-left-color: var(--danger-color);
+  }
+  .table-card.status-reserved {
+    border-left-color: var(--warning-color);
+  }
+  .table-card.status-cleaning {
+    border-left-color: var(--info-color);
+  }
+  
+  /* Status badges General */
+  .badge {
+    padding: 0.35em 0.65em;
+    font-weight: 600;
+    border-radius: 0.25rem;
+    text-transform: uppercase;
+    font-size: 0.75em;
+    letter-spacing: 0.02em;
+    color: white; /* Default badge text color */
+  }
+  
+  /* Specific Status Badges */
+  .status-badge-available {
+    background-color: var(--success-color) !important;
+  }
+  .status-badge-occupied {
+    background-color: var(--danger-color) !important;
+  }
+  .status-badge-reserved {
+    background-color: var(--warning-color) !important;
+    color: #1e293b !important; /* Dark text on yellow */
+  }
+  .status-badge-cleaning {
+    background-color: var(--info-color) !important;
+    color: white !important;
+  }
+  .status-badge-unknown { /* For KDS preview if status missing */
+    background-color: #64748b !important;
+    color: white !important;
+  }
+  .status-badge-pending {
+    background-color: var(--warning-color) !important;
+     color: #1e293b !important;
+  }
+  .status-badge-preparing {
+    background-color: var(--info-color) !important;
+     color: white !important;
+  }
+  
+  /* KDS Styling */
+  .kds-card {
+    margin-bottom: 1.5rem;
+    border-left-width: 4px; /* Use the card border */
+    border-left-style: solid;
+    transition: all 0.2s ease-in-out;
+  }
+  /* KDS Status colors */
+  .kds-card.card-status-pending {
+    border-left-color: var(--warning-color);
+  }
+  .kds-card.card-status-preparing {
+    border-left-color: var(--info-color);
+  }
+  
+  .kds-card:hover {
+    transform: translateY(-3px);
+  }
+  
+  .kds-card .card-header {
     font-size: 0.9rem;
-    padding: 0.5rem 0.75rem;
-}
-.kds-card .card-body {
+    padding: 0.5rem 1rem; /* Adjusted padding */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .kds-card .card-body {
+    padding: 1rem;
+  }
+  
+  .kds-item {
     padding: 0.75rem;
-}
-.kds-item {
-    padding-bottom: 0.5rem;
     margin-bottom: 0.5rem;
-}
-.kds-item h5 {
+    border-radius: var(--border-radius);
+    background-color: rgba(241, 245, 249, 0.5);
+    transition: background-color 0.2s ease;
+  }
+  
+  .kds-item:last-child {
+      margin-bottom: 0;
+  }
+  
+  .kds-item:hover {
+    background-color: rgba(241, 245, 249, 0.9);
+  }
+  
+  .kds-item h5 {
     margin-bottom: 0.25rem;
     font-size: 1.1rem;
-}
-.kds-item p {
-     margin-bottom: 0.5rem;
-     font-size: 0.9rem;
-}
-
-/* KDS Status colors */
-.kds-item .status-pending { font-weight: bold; color: #fd7e14; } /* Orange */
-.kds-item .status-preparing { font-weight: bold; color: #0d6efd; } /* Blue */
-.kds-item .status-served { font-weight: bold; color: #198754; } /* Green */
-.kds-item .status-cancelled { font-weight: bold; color: #6c757d; text-decoration: line-through;} /* Grey */
-
-/* Specific KDS card border based on first item's status */
-/* Note: This would require backend logic to add a class to the card itself */
-/* .kds-card.status-pending { border-left-color: #fd7e14; } */
-/* .kds-card.status-preparing { border-left-color: #0d6efd; } */
-
-
-/* Footer basic styling */
-footer {
-    padding: 1rem 0;
-    font-size: 0.9em;
-}
-
-/* Utility class for cancelled items */
-.text-decoration-line-through {
+    font-weight: 600;
+  }
+  
+  .kds-item p {
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  /* KDS Status text */
+  .kds-item .status-text-pending,
+  .order-item-actions .status-pending { /* Also style status in order view */
+    font-weight: bold;
+    color: var(--warning-color);
+    /* Optional background for emphasis */
+    /* padding: 0.2em 0.5em; */
+    /* background: rgba(245, 158, 11, 0.1); */
+    /* border-radius: 0.25rem; */
+  }
+  
+  .kds-item .status-text-preparing,
+  .order-item-actions .status-preparing {
+    font-weight: bold;
+    color: var(--info-color);
+  }
+  
+  .kds-item .status-text-served,
+  .order-item-actions .status-served {
+    font-weight: bold;
+    color: var(--success-color);
+  }
+  
+  .kds-item .status-text-cancelled,
+  .order-item-actions .status-cancelled {
+    font-weight: bold;
+    color: #94a3b8;
     text-decoration: line-through;
-}
+  }
+  .order-item-actions .status-unknown {
+      color: #64748b;
+  }
+  
+  
+  /* Order View - Item Status Styling (inside list items) */
+  .item-status-pending {
+    color: var(--warning-color);
+    font-weight: 500;
+  }
+  .item-status-preparing {
+    color: var(--info-color);
+    font-weight: 500;
+  }
+  .item-status-served {
+    color: var(--success-color);
+    font-weight: 500;
+  }
+  .item-status-cancelled {
+    color: #94a3b8;
+    text-decoration: line-through;
+  }
+  .item-status-unknown {
+    color: #64748b;
+  }
+  
+  /* List Groups */
+  .list-group-item {
+    padding: 0.75rem 1.25rem;
+    border-color: var(--light-border);
+    transition: background-color 0.15s ease-in-out;
+    border-left: none; /* Remove default border */
+    border-right: none;
+  }
+  .list-group-flush > .list-group-item:last-child {
+      border-bottom-width: 1px; /* Ensure last item has bottom border in flush */
+  }
+  
+  .list-group-item:hover {
+    background-color: rgba(241, 245, 249, 0.7);
+  }
+  
+  .list-group-item-action {
+    transition: all 0.2s ease;
+  }
+  
+  .list-group-item-action:hover {
+    transform: translateX(2px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow on hover */
+    z-index: 1; /* Ensure hover effect is on top */
+  }
+  
+  /* Form elements */
+  .form-control, .form-select {
+    border-radius: var(--border-radius);
+    border-color: #cbd5e1; /* Slightly darker border */
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  }
+  
+  .form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    outline: none; /* Remove default outline */
+  }
+  
+  .form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #475569; /* Slightly darker label */
+  }
+  .form-label i {
+      color: #94a3b8; /* Lighter icon color */
+  }
+  
+  /* Button styles */
+  .btn {
+    border-radius: var(--border-radius);
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid transparent; /* Base border */
+  }
+  .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+  }
+  .btn:focus {
+       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); /* Focus shadow */
+  }
+  .btn:active {
+      transform: translateY(0px);
+      box-shadow: var(--shadow-sm);
+  }
+  
+  .btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+  }
+  .btn-primary:hover, .btn-primary:focus {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    color: white;
+  }
+  
+  .btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: white;
+  }
+  .btn-success:hover {
+    background-color: #059669;
+    border-color: #059669;
+    color: white;
+  }
+  
+  .btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+     color: white;
+  }
+  .btn-danger:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+    color: white;
+  }
+  
+  .btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: #1e293b; /* Dark text on yellow */
+  }
+  .btn-warning:hover {
+    background-color: #d97706;
+    border-color: #d97706;
+    color: #1e293b;
+  }
+  
+  .btn-secondary {
+    background-color: #64748b;
+    border-color: #64748b;
+    color: white;
+  }
+  .btn-secondary:hover {
+    background-color: #475569;
+    border-color: #475569;
+    color: white;
+  }
+  
+  .btn-info {
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+    color: white;
+  }
+  .btn-info:hover {
+    background-color: var(--primary-dark); /* Use primary dark for info hover */
+    border-color: var(--primary-dark);
+    color: white;
+  }
+  
+  
+  .btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+  }
+  .btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: white;
+  }
+  
+  .btn-outline-secondary {
+      color: #64748b;
+      border-color: #64748b;
+  }
+  .btn-outline-secondary:hover {
+      background-color: #64748b;
+      color: white;
+  }
+  
+  .btn-outline-success {
+      color: var(--success-color);
+      border-color: var(--success-color);
+  }
+  .btn-outline-success:hover {
+      background-color: var(--success-color);
+      color: white;
+  }
+  
+  .btn-outline-danger {
+      color: var(--danger-color);
+      border-color: var(--danger-color);
+  }
+  .btn-outline-danger:hover {
+      background-color: var(--danger-color);
+      color: white;
+  }
+  .btn-outline-warning {
+      color: var(--warning-color);
+      border-color: var(--warning-color);
+  }
+  .btn-outline-warning:hover {
+      background-color: var(--warning-color);
+      color: #1e293b;
+  }
+  .btn-outline-info {
+      color: var(--info-color);
+      border-color: var(--info-color);
+  }
+  .btn-outline-info:hover {
+      background-color: var(--info-color);
+      color: white;
+  }
+  
+  
+  /* Order Item Actions - Appear on Hover */
+  .order-item-actions {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+  }
+  .list-group-item:hover .order-item-actions {
+    opacity: 1;
+  }
+  /* Ensure actions stay visible if focused within */
+  .order-item-actions:focus-within {
+      opacity: 1;
+  }
+  
+  /* Alert styling */
+  .alert {
+    border-radius: var(--border-radius);
+    border-width: 1px;
+    border-style: solid;
+    padding: 1rem 1.25rem; /* Consistent padding */
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1.5rem;
+  }
+  .alert i { /* Icon alignment */
+      vertical-align: middle;
+  }
+  
+  .alert-success {
+    background-color: #ecfdf5; /* Lighter green */
+    color: #065f46; /* Darker green text */
+    border-color: #a7f3d0; /* Light green border */
+  }
+  
+  .alert-danger {
+    background-color: #fff1f2; /* Lighter red */
+    color: #b91c1c; /* Darker red text */
+    border-color: #fecaca; /* Light red border */
+  }
+  
+  .alert-warning {
+    background-color: #fffbeb; /* Lighter yellow */
+    color: #92400e; /* Darker yellow text */
+    border-color: #fde68a; /* Light yellow border */
+  }
+  
+  .alert-info {
+    background-color: #eff6ff; /* Lighter blue */
+    color: #1e40af; /* Darker blue text */
+    border-color: #bfdbfe; /* Light blue border */
+  }
+  
+  .alert-secondary {
+    background-color: #f8fafc;
+    color: #475569;
+    border-color: #e2e8f0;
+  }
+  
+  .alert-dismissible .btn-close {
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 1rem 1.25rem; /* Ensure close button clickable area is sufficient */
+  }
+  
+  /* Footer styling */
+  footer {
+    padding: 1.5rem 0; /* More padding */
+    font-size: 0.9em;
+    color: #64748b;
+    background-color: #e2e8f0 !important; /* Slightly darker light background */
+    margin-top: 3rem;
+    border-top: 1px solid #cbd5e1;
+  }
+  
+  /* Animation Keyframes */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Utility Classes */
+  .fade-in {
+    animation: fadeIn 0.5s ease-out forwards; /* Apply animation */
+  }
+  
+  .price-text {
+    font-variant-numeric: tabular-nums; /* Align numbers */
+  }
+  
+  .currency-symbol {
+    /* font-family: system-ui; */ /* Use default */
+    margin-right: 0.1em;
+  }
+  
+  /* Dashboard Cards */
+  .dashboard-card {
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    background-color: var(--neutral-card);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    height: 100%; /* Ensure cards in a row have same height */
+    display: flex;
+    flex-direction: column; /* Align content vertically */
+  }
+  
+  .dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .dashboard-icon {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+    font-size: 1.5rem; /* Icon size */
+  }
+  
+  /* For responsive tables */
+  .table-responsive {
+    border: 1px solid var(--light-border);
+    border-radius: var(--border-radius);
+    overflow: hidden; /* Clip corners */
+  }
+  
+  /* Table styling */
+  .table {
+    margin-bottom: 0; /* Remove default margin inside responsive container */
+    border-color: var(--light-border);
+  }
+  
+  .table th {
+    background-color: rgba(241, 245, 249, 0.7);
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 0.75rem 1rem; /* Consistent padding */
+    border-bottom-width: 2px; /* Thicker bottom border on header */
+    border-color: var(--light-border);
+  }
+  .table td {
+      padding: 0.75rem 1rem;
+      vertical-align: middle;
+      border-color: var(--light-border);
+  }
+  
+  /* Add hover effect to table rows */
+  .table-hover > tbody > tr:hover > * {
+    background-color: rgba(241, 245, 249, 0.5);
+  }
+  
+  
+  /* Pagination styling if needed */
+  .pagination .page-link {
+    color: var(--primary-color);
+    border-color: var(--light-border);
+    border-radius: var(--border-radius); /* Apply border radius */
+    margin: 0 2px; /* Spacing */
+  }
+  .pagination .page-link:hover {
+    background-color: #eff6ff; /* Light blue hover */
+  }
+  
+  .pagination .page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    z-index: 3; /* Ensure active page is on top */
+  }
+  .pagination .page-item.disabled .page-link {
+      color: #94a3b8;
+      background-color: var(--neutral-bg);
+      border-color: var(--light-border);
+  }
+  
+  
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .card-title {
+      font-size: 1.1rem;
+    }
+  
+    .btn {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.9rem; /* Slightly smaller buttons on mobile */
+    }
+    .btn-sm {
+       padding: 0.25rem 0.5rem;
+       font-size: 0.8rem;
+    }
+  
+    h2 {
+      font-size: 1.6rem; /* Smaller headings */
+    }
+    h3 {
+      font-size: 1.4rem;
+    }
+    .navbar-nav .nav-link {
+        padding: 0.75rem 1rem !important; /* More padding for toggled items */
+    }
+  }

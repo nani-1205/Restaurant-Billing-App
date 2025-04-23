@@ -2,42 +2,50 @@
 {% block title %}Reports & Analytics{% endblock %}
 
 {% block content %}
-    <h2>Reports & Analytics</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+         <h2><i class="fas fa-chart-line me-2"></i>Reports & Analytics</h2>
+    </div>
     <hr>
 
      {% if db_error %}
-        <div class="alert alert-danger">Database connection error. Reports cannot be generated.</div>
+        <div class="alert alert-danger"><i class="fas fa-database me-2"></i>Database connection error. Reports cannot be generated.</div>
      {% else %}
-        <div class="row">
+        <div class="row g-4">
             <!-- Sales Summary Card -->
-            <div class="col-md-6 mb-4">
-                <div class="card">
-                    <div class="card-header">Today's Sales Summary</div>
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header"><i class="fas fa-calendar-day me-2"></i>Today's Sales Summary</div>
                     <div class="card-body">
-                        <h5 class="card-title">Total Sales Today</h5>
-                        <p class="card-text fs-4 fw-bold">₹{{ "%.2f"|format(report_data.today_total_sales) }}</p> {# <-- Currency symbol updated here #}
-                        <h6 class="card-subtitle mb-2 text-muted">Number of Bills Today</h6>
-                        <p class="card-text fs-5">{{ report_data.today_bill_count }}</p>
+                        <div class="row">
+                            <div class="col-6">
+                                <p class="text-muted mb-1">Total Sales</p>
+                                <h4 class="mb-0 price-text"><span class="currency-symbol">₹</span>{{ "%.2f"|format(report_data.today_total_sales) }}</h4>
+                            </div>
+                            <div class="col-6">
+                                <p class="text-muted mb-1">Transactions</p>
+                                <h4 class="mb-0">{{ report_data.today_bill_count }}</h4>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Top Selling Items Card -->
-            <div class="col-md-6 mb-4">
-                <div class="card">
-                    <div class="card-header">Top Selling Items (All Time)</div>
-                    <div class="card-body">
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header"><i class="fas fa-star me-2"></i>Top Selling Items (All Time by Qty)</div>
+                    <div class="card-body p-0"> {# Remove padding for list #}
                         {% if report_data.top_selling_items %}
                         <ul class="list-group list-group-flush">
                             {% for item in report_data.top_selling_items %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ item._id }}
+                                <span><i class="fas fa-utensil-spoon me-2 text-muted"></i>{{ item._id }}</span>
                                 <span class="badge bg-primary rounded-pill">{{ item.total_quantity }} sold</span>
                             </li>
                             {% endfor %}
                         </ul>
                         {% else %}
-                        <p class="text-muted">No sales data available yet to determine top items.</p>
+                        <p class="text-muted p-3 text-center">No sales data available yet.</p>
                         {% endif %}
                     </div>
                 </div>
@@ -45,7 +53,7 @@
         </div>
 
         <hr>
-        <p class="text-muted">More detailed reports (date ranges, visualizations) can be added here.</p>
+        <p class="text-muted text-center"><i class="fas fa-chart-pie me-1"></i>More detailed reports (date ranges, visualizations) can be added here.</p>
 
      {% endif %}
 {% endblock %}
