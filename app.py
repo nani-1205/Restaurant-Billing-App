@@ -8,7 +8,7 @@ from flask import (
 )
 from pymongo import MongoClient, errors, DESCENDING
 from bson import ObjectId
-from datetime import datetime, timedelta # timedelta might be useful for reports
+from datetime import datetime, timedelta # datetime needed for context processor
 import config  # Import config variables
 import traceback # For printing full tracebacks on generic exceptions
 
@@ -150,11 +150,25 @@ def calculate_order_total(items):
     total = subtotal + tax
     return round(subtotal, 2), round(tax, 2), round(total, 2) # Round for currency
 
-# Add context processor to make config vars available in templates if needed
+# --- Context Processors ---
+# Make variables available to all templates
+
 @app.context_processor
 def inject_config():
-    """Injects config variables into template context."""
-    return dict(config=config)
+    """Injects config variables (safe ones) into template context."""
+    # Be careful not to inject sensitive keys like SECRET_KEY or passwords
+    safe_config = {
+        'TAX_RATE_PERCENT': config.TAX_RATE_PERCENT
+        # Add other safe config variables if needed in templates
+    }
+    return dict(config=safe_config)
+
+@app.context_processor
+def inject_current_year():
+    """Injects the current year into all templates."""
+    # Using UTC is generally safer for server-side timestamps
+    return {'current_year': datetime.utcnow().year}
+
 
 # --- Routes ---
 
@@ -162,7 +176,6 @@ def inject_config():
 def index():
     """Dashboard/Home Page"""
     db_instance = get_db()
-    # --- FIX: Compare db_instance with None ---
     db_error_flag = db_instance is None # Correct way to check
     stats = {} # Initialize stats
 
