@@ -1,126 +1,268 @@
 {% extends "base.html" %}
-{% block title %}View Order - Table {{ order.table_number }}{% endblock %}
+{% block title %}Order Details - Table {{ order.table_number }} {% endblock %}
+
+{% block head_extra %}
+<style>
+/* Styling for different item statuses */
+.item-status-pending { color: orange; }
+.item-status-preparing { color: blue; }
+.item-status-served { color: green; }
+.item-status-cancelled { color: red; text-decoration: line-through; }
+.item-status-unknown { color: grey; }
+
+.order-item-actions { opacity: 0; transition: opacity 0.2s ease-in-out; }
+.list-group-item:hover .order-item-actions { opacity: 1; }
+.item-price { min-width: 70px; display: inline-block; text-align: right; } /* Align prices */
+</style>
+{% endblock %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2>Order Details - Table {{ order.table_number }}</h2>
-        <div>
-            <span class="badge fs-6
-                {% if order.status == 'open' %} bg-primary
-                {% elif order.status == 'closed' %} bg-warning text-dark
-                {% elif order.status == 'billed' %} bg-success
-                {% elif order.status == 'cancelled' %} bg-danger
-                {% else %} bg-secondary
-                {% endif %}">
-                Status: {{ order.status|capitalize }}
-            </span>
-        </div>
-    </div>
-    <p class="text-muted">Order ID: {{ order._id }} | Opened: {{ order.order_time.strftime('%Y-%m-%d %H:%M') if order.order_time else 'N/A' }}</p>
+    <h2>Order Details - Table {{ order.table_number }}</h2>
+    <p class="text-muted">
+        Order ID: {{ order._id }} | Status: <span class="badge bg-{{ 'success' if order.status == 'billed' else ('warning' if order.status == 'closed' else ('danger' if order.status == 'cancelled' else 'info')) }}">{{ order.status|capitalize }}</span> |
+        Ordered: {{ order.order_time.strftime('%Y-%m-%d %H:%M') if order.order_time else 'N/A' }}
+    </p>
     <hr>
 
-    <!-- Order Items List -->
-    <div class="card mb-4">
-        <div class="card-header">Ordered Items</div>
-        <div class="card-body">
-            {% if order.items %}
-            <ul class="list-group list-group-flush">
-                {% for item in order.items %}
-                <li class="list-group-item d-flex justify-content-between align-items-center {% if item.status == 'cancelled' %}text-muted text-decoration-line-through{% endif %}">
-                    <div>
-                        <strong>{{ item.quantity }} x {{ item.name }}</strong>
-                        <small class="d-block">
-                            (${{"%.2f"|format(item.price)}} each)
-                            {% if item.status != 'cancelled' %}
-                             | KDS: <span class="badge
-                                {% if item.status == 'pending' %} bg-warning text-dark
-                                {% elif item.status == 'preparing' %} bg-info text-dark
-                                {% elif item.status == 'served' %} bg-success
-                                {% else %} bg-secondary
-                                {% endif %}">{{ item.status|capitalize }}</span>
-                            {% endif %}
-                        </small>
-                    </div>
-                    <div class="d-flex align-items-center">
-                         <span class="me-3">${{ "%.2f"|format(item.price * item.quantity) }}</span>
-                         {% if order.status == 'open' and item.status != 'cancelled' %} {# Only allow cancel on open, non-cancelled items #}
-                         <form action="{{ url_for('order_update_item_status', order_id=order._id, item_index=loop.index0) }}" method="POST" class="d-inline" onsubmit="return confirm('Cancel this item ({{item.name}})? This cannot be undone easily.');">
-                             <input type="hidden" name="status" value="cancelled">
-                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancel Item">×</button>
-                         </form>
-                         {% endif %}
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p>No items have been added to this order yet.</p>
-            {% endif %}
-        </div>
-        <div class="card-footer">
-             <ul class="list-group list-group-flush">
-                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>Subtotal</span>
-                    <strong>${{ "%.2f"|format(order.subtotal) }}</strong>
-                 </li>
-                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>Tax ({{ config.TAX_RATE_PERCENT }}%)</span>
-                    <strong>${{ "%.2f"|format(order.tax) }}</strong>
-                 </li>
-                  <li class="list-group-item d-flex justify-content-between align-items-center fw-bold fs-5">
-                    <span>Total</span>
-                    <span>${{ "%.2f"|format(order.total_amount) }}</span>
-                 </li>
-             </ul>
-        </div>
-    </div>
-
-    <!-- Add More Items Form (Only if order is open) -->
-    {% if order.status == 'open' %}
-    <div class="card mb-4">
-        <div class="card-header">Add More Items</div>
-        <div class="card-body">
-            <form action="{{ url_for('order_add_item', order_id=order._id) }}" method="POST" class="row g-3 align-items-end">
-                 <div class="col-md-6">
-                    <label for="menu_item_id" class="form-label">Select Item</label>
-                    <select class="form-select" id="menu_item_id" name="menu_item_id" required>
-                        <option value="" selected disabled>-- Choose Item --</option>
-                        {% for category, items_in_category in menu_items|groupby('category') %}
-                            <optgroup label="{{ category or 'Uncategorized' }}">
-                                {% for item in items_in_category %}
-                                    <option value="{{ item._id }}">{{ item.name }} (${{ "%.2f"|format(item.price) }})</option>
-                                {% endfor %}
-                            </optgroup>
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Current Order Items</span>
+                    {# Use get with default empty list and check length #}
+                    <span class="badge bg-secondary rounded-pill">{{ order.get('items', [])|length }} items</span>
+                </div>
+                <div class="card-body p-0">
+                     <ul class="list-group list-group-flush">
+                        {# --- FIX APPLIED HERE --- #}
+                        {% for item in order.get('items', []) %} {# Use get() for safety and ['items'] is implicitly handled by get() #}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    {{ item.quantity }} x {{ item.name }}
+                                    <small class="ms-2 item-status-{{ item.status|lower if item.status else 'unknown' }}">
+                                        ({{ item.status|capitalize if item.status else 'N/A' }})
+                                    </small>
+                                     {% if item.status == 'cancelled' %}
+                                        <span class="badge bg-danger ms-1">Cancelled</span>
+                                     {% endif %}
+                                </span>
+                                <span>
+                                    <span class="item-price me-3">
+                                        {# Display price even if cancelled, but maybe dimmed? #}
+                                        ₹{{ "%.2f"|format(item.price * item.quantity) }}
+                                    </span>
+                                    <!-- Action Buttons only if order is open -->
+                                    {% if order.status == 'open' %}
+                                    <div class="btn-group btn-group-sm d-inline-block ms-1 order-item-actions">
+                                         <!-- KDS status buttons -->
+                                         {% if item.status == 'pending' %}
+                                            <form action="{{ url_for('order_update_item_status', order_id=order._id, item_index=loop.index0) }}" method="POST" class="d-inline item-status-form">
+                                                <input type="hidden" name="status" value="preparing">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Start Preparing">🍳</button>
+                                            </form>
+                                         {% elif item.status == 'preparing' %}
+                                             <form action="{{ url_for('order_update_item_status', order_id=order._id, item_index=loop.index0) }}" method="POST" class="d-inline item-status-form">
+                                                 <input type="hidden" name="status" value="served">
+                                                 <button type="submit" class="btn btn-sm btn-outline-success" title="Mark Served">✔️</button>
+                                             </form>
+                                         {% endif %}
+                                          <!-- Cancel button (only if not already served/cancelled) -->
+                                         {% if item.status not in ['served', 'cancelled'] %}
+                                         <form action="{{ url_for('order_update_item_status', order_id=order._id, item_index=loop.index0) }}" method="POST" class="d-inline item-status-form" onsubmit="return confirm('Cancel this item [{{ item.name }}]?');">
+                                             <input type="hidden" name="status" value="cancelled">
+                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancel Item">❌</button>
+                                         </form>
+                                         {% endif %}
+                                    </div>
+                                    {% endif %} {# end if order.status == 'open' #}
+                                </span>
+                            </li>
+                        {% else %}
+                            <li class="list-group-item">No items added to this order yet.</li>
+                        {# --- END OF FIX AREA --- #}
                         {% endfor %}
-                    </select>
+                     </ul>
                 </div>
-                <div class="col-md-3">
-                    <label for="quantity" class="form-label">Quantity</label>
-                    <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required>
-                </div>
-                <div class="col-md-auto">
-                    <button type="submit" class="btn btn-primary">Add Item</button>
-                </div>
-            </form>
+                 <!-- Footer for Totals -->
+                 <div class="card-footer">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                           <span>Subtotal</span>
+                           {# Use get() for safety, default to 0.0 #}
+                           <strong>₹{{ "%.2f"|format(order.get('subtotal', 0.0)) }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                           <span>Tax ({{ config.TAX_RATE_PERCENT }}%)</span>
+                           <strong>₹{{ "%.2f"|format(order.get('tax', 0.0)) }}</strong>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center fw-bold fs-5">
+                           <span>Total Amount</span>
+                           <span>₹{{ "%.2f"|format(order.get('total_amount', 0.0)) }}</span>
+                        </li>
+                    </ul>
+                 </div>
+            </div>
+
+            <!-- Action buttons for the order -->
+            {% if order.status == 'open' %}
+            <div class="d-flex justify-content-end mb-3">
+                 <form action="{{ url_for('order_close', order_id=order._id) }}" method="POST" onsubmit="return confirm('Are you sure you want to close this order for billing? Make sure all items are served or cancelled first.');">
+                     <button type="submit" class="btn btn-warning">Close Order (Ready for Bill)</button>
+                 </form>
+                 <!-- Add a Cancel Order button? -->
+                 {#
+                 <form action="{{ url_for('order_cancel', order_id=order._id) }}" method="POST" onsubmit="return confirm('Are you sure you want to CANCEL this entire order?');" class="ms-2">
+                     <button type="submit" class="btn btn-danger">Cancel Order</button>
+                 </form>
+                 #}
+            </div>
+            {% elif order.status == 'closed' %}
+            <div class="d-flex justify-content-end mb-3">
+                 <a href="{{ url_for('bill_view', order_id=order._id) }}" class="btn btn-success">Proceed to Billing</a>
+            </div>
+             {% elif order.status == 'billed' %}
+             <div class="alert alert-success">This order has been billed.</div>
+             {% elif order.status == 'cancelled' %}
+             <div class="alert alert-danger">This order was cancelled.</div>
+             {% endif %}
+
         </div>
-    </div>
-    {% endif %}
 
-    <!-- Order Actions -->
-    <div class="mt-4">
+        <!-- Add More Items Section (only if order is open) -->
         {% if order.status == 'open' %}
-        <form action="{{ url_for('order_close', order_id=order._id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to close this order for billing? Items cannot be added after closing.');">
-            <button type="submit" class="btn btn-warning">Close Order (Ready for Bill)</button>
-        </form>
-        {% elif order.status == 'closed' %}
-         <a href="{{ url_for('bill_view', order_id=order._id) }}" class="btn btn-success">Go to Bill</a>
-        {% elif order.status == 'billed' %}
-         <a href="{{ url_for('bill_view', order_id=order._id) }}" class="btn btn-info">View Final Bill</a>
-         <span class="ms-2 fst-italic text-success">Order Paid and Completed.</span>
-        {% endif %}
-
-        <a href="{{ url_for('tables_manage') }}" class="btn btn-secondary">Back to Tables</a>
-        <!-- Add Print Order button if needed -->
+        <div class="col-md-4">
+             <div class="card">
+                <div class="card-header">Add Items to Order</div>
+                <div class="card-body">
+                    <form id="add-item-form" action="{{ url_for('order_add_item', order_id=order._id) }}" method="POST">
+                        <div class="mb-3">
+                            <label for="menu_item_id" class="form-label">Select Item</label>
+                            <select class="form-select" id="menu_item_id" name="menu_item_id" required>
+                                <option value="" selected disabled>-- Choose an item --</option>
+                                {% for item in menu_items %}
+                                <option value="{{ item._id }}">{{ item.name }} (₹{{ "%.2f"|format(item.price) }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                         <div class="mb-3">
+                            <label for="quantity" class="form-label">Quantity</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required>
+                         </div>
+                        <button type="submit" class="btn btn-primary w-100">Add to Order</button>
+                    </form>
+                </div>
+             </div>
+        </div>
+        {% endif %} {# end if order.status == 'open' #}
     </div>
 
+     <div class="mt-4">
+         <a href="{{ url_for('tables_manage') }}" class="btn btn-secondary">Back to Tables</a>
+         {% if order.status == 'billed' %}
+             <a href="{{ url_for('bill_view', order_id=order._id) }}" class="btn btn-info">View Final Bill</a>
+         {% endif %}
+    </div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+// Optional: Slightly better UX for adding items - reset form after successful add?
+// Requires modifying the order_add_item route to return JSON instead of redirect
+/*
+document.getElementById('add-item-form')?.addEventListener('submit', function(event) {
+    event.preventDefault(); // Stop default submission
+
+    const form = event.target;
+    const formData = new FormData(form);
+
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { // Indicate we expect JSON back if route is modified
+           'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        // If route redirects, response.ok will be true but might have redirected status
+        if (response.redirected) {
+             window.location.href = response.url; // Follow redirect
+             return; // Stop processing
+        }
+        if (!response.ok) {
+             // Try to get error message from JSON if possible
+             return response.json().then(errData => {
+                 throw new Error(errData.error || 'Failed to add item');
+             });
+        }
+        return response.json(); // If route returns JSON on success
+    })
+    .then(data => {
+        if (data.success) {
+            // Option 1: Simple reload (like current behavior)
+             window.location.reload();
+
+            // Option 2: Update UI dynamically (more complex)
+            // - Add item to the list above
+            // - Update totals
+            // - Reset the form
+            // form.reset();
+            // Display a temporary success message maybe
+        } else {
+             alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error adding item:', error);
+        alert('An error occurred while adding the item: ' + error.message);
+    });
+});
+*/
+
+// Optional: Use AJAX for item status updates to avoid page reload
+document.querySelectorAll('.item-status-form').forEach(form => {
+    form.addEventListener('submit', function(event) {
+        // Check if the onsubmit confirmation returned false (for cancel button)
+        // This check is a bit tricky as onsubmit runs before this listener.
+        // A better approach might be to handle confirmation within this listener.
+        // For now, relying on the standard confirm dialog.
+
+        event.preventDefault(); // Prevent default full page submission
+
+        const formData = new FormData(this);
+        const actionUrl = this.action;
+        const button = this.querySelector('button[type="submit"]');
+        const originalButtonText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '...'; // Indicate processing
+
+        fetch(actionUrl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload for simplicity to see all changes (totals, statuses)
+                window.location.reload();
+                // Alternative: Update UI dynamically (complex)
+                // - Find the list item corresponding to this form
+                // - Update the status text/badge
+                // - Re-enable button, restore text
+                // - If cancelled, potentially update totals via another AJAX call or recalculate client-side
+            } else {
+                alert('Error updating status: ' + data.error);
+                button.disabled = false;
+                button.innerHTML = originalButtonText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An network error occurred while updating status.');
+            button.disabled = false;
+            button.innerHTML = originalButtonText;
+        });
+    });
+});
+
+</script>
 {% endblock %}
