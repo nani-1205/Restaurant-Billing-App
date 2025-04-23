@@ -1,76 +1,56 @@
-# restaurant_billing/config.py
-
 import os
 from dotenv import load_dotenv
 
-# Determine the base directory of the project
-# This ensures .env is found even if config.py is run from a different directory
-basedir = os.path.abspath(os.path.dirname(__file__))
-dotenv_path = os.path.join(basedir, '.env')
-
-# Load environment variables from .env file
-# If the .env file exists, load_dotenv returns True, otherwise False
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path=dotenv_path)
-    print("Loaded environment variables from .env file.")
-else:
-    print("Warning: .env file not found. Using system environment variables or defaults.")
-
+# Load environment variables from a .env file if it exists
+# This is great for development and keeps credentials out of the code
+load_dotenv()
 
 # --- Database Configuration ---
-# Load individual components from environment variables.
-# MongoClient in app.py will use these directly.
-# Provide sensible defaults mainly for local development if .env is missing.
-
-MONGO_USERNAME = os.environ.get("MONGO_USERNAME", "default_user")
-MONGO_PASSWORD = os.environ.get("MONGO_PASSWORD", "default_password")
-MONGO_IP = os.environ.get("MONGO_IP", "127.0.0.1")
-# Ports are typically integers, so cast it
+# Fetch values from environment variables first, with sensible defaults
+# IMPORTANT: Replace default values only for local testing if not using .env
+# For production, ALWAYS set these via environment variables.
+MONGO_USERNAME = os.environ.get("MONGO_USERNAME", "your_mongo_username")
+MONGO_PASSWORD = os.environ.get("MONGO_PASSWORD", "your_mongo_password")
+MONGO_IP = os.environ.get("MONGO_IP", "127.0.0.1") # Default to localhost if not set
+# Ensure port is read as integer, default to 27017
 MONGO_PORT = int(os.environ.get("MONGO_PORT", 27017))
-MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "restaurant_db_dev") # Maybe use diff name for dev
-MONGO_AUTH_DB = os.environ.get("MONGO_AUTH_DB", "admin") # The database to authenticate against
+MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "restaurant_db")
+# The DB to authenticate against (often 'admin' or the database itself if user is defined there)
+MONGO_AUTH_DB = os.environ.get("MONGO_AUTH_DB", "admin")
+
+# --- Construct the MongoDB URI ---
+# This is the crucial part that was missing or incorrect before.
+# It combines the above variables into the connection string PyMongo uses.
+MONGO_URI = f"mongodb://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_IP}:{MONGO_PORT}/?authSource={MONGO_AUTH_DB}"
+
 
 # --- Flask Configuration ---
-# Load secret key from environment or use a default (INSECURE FOR PRODUCTION)
-SECRET_KEY = os.environ.get("SECRET_KEY", "a_very_insecure_default_secret_key_for_dev_only")
-if SECRET_KEY == "a_very_insecure_default_secret_key_for_dev_only":
-     print("\nWARNING: Using default Flask SECRET_KEY. Set a strong SECRET_KEY in your .env file for production!\n")
+# Fetch SECRET_KEY from environment, default to a DEV key (CHANGE THIS FOR PRODUCTION)
+SECRET_KEY = os.environ.get("SECRET_KEY", "a_very_insecure_secret_key_for_dev_only_change_me")
 
+# Set DEBUG mode based on FLASK_ENV or a specific DEBUG variable
+# Common practice: set FLASK_ENV=development for debug mode
+FLASK_ENV = os.environ.get('FLASK_ENV', 'production') # Default to production
+DEBUG = FLASK_ENV == 'development'
 
-# Set debug mode based on environment variable (e.g., FLASK_DEBUG=1) or default to False for safety
-# Flask automatically uses FLASK_DEBUG environment variable if set.
-# Setting it here provides an explicit default if FLASK_DEBUG isn't set.
-# Common practice: Set DEBUG based on an environment variable like FLASK_ENV=development
-FLASK_ENV = os.environ.get('FLASK_ENV', 'production') # Default to production for safety
-DEBUG = FLASK_ENV == 'development' # Set DEBUG to True only if FLASK_ENV is 'development'
 
 # --- Application Specific ---
-# Load tax rate from environment or use a default
-try:
-    TAX_RATE_PERCENT = float(os.environ.get("TAX_RATE_PERCENT", 5.0))
-except ValueError:
-    print("Warning: Invalid TAX_RATE_PERCENT in environment. Using default 5.0")
-    TAX_RATE_PERCENT = 5.0
+# Fetch TAX_RATE_PERCENT from environment, default to 5.0
+# Ensure it's read as a float
+TAX_RATE_PERCENT = float(os.environ.get("TAX_RATE_PERCENT", 5.0))
 
 
-# --- Optional: Print loaded config for verification (careful with sensitive info) ---
-print("--- Configuration Values ---")
-print(f"FLASK_ENV: {FLASK_ENV}")
-print(f"DEBUG Mode: {DEBUG}")
-print(f"MONGO_IP: {MONGO_IP}")
-print(f"MONGO_PORT: {MONGO_PORT}")
-print(f"MONGO_DB_NAME: {MONGO_DB_NAME}")
-print(f"MONGO_AUTH_DB: {MONGO_AUTH_DB}")
-print(f"MONGO_USERNAME: {MONGO_USERNAME}")
-# Avoid printing password in logs:
-# print(f"MONGO_PASSWORD: {'*' * len(MONGO_PASSWORD) if MONGO_PASSWORD else 'Not Set'}")
-print(f"TAX_RATE_PERCENT: {TAX_RATE_PERCENT}")
-print("--------------------------")
-
-# --- Sanity Checks (Optional but recommended) ---
-if not SECRET_KEY or SECRET_KEY == "a_very_insecure_default_secret_key_for_dev_only":
-    # This check is redundant with the warning above, but emphasizes importance
-    print("CRITICAL WARNING: Flask SECRET_KEY is not set or is insecure.")
-
-if not MONGO_USERNAME or not MONGO_PASSWORD:
-    print("Warning: MongoDB username or password might be missing.")
+# --- Optional: Print loaded config values during startup (for debugging) ---
+# Be careful not to print sensitive info like passwords in production logs
+if DEBUG: # Only print in debug mode
+    print("\n--- Configuration Values (Debug Mode) ---")
+    print(f"DEBUG Mode: {DEBUG}")
+    print(f"MONGO_IP: {MONGO_IP}")
+    print(f"MONGO_PORT: {MONGO_PORT}")
+    print(f"MONGO_DB_NAME: {MONGO_DB_NAME}")
+    print(f"MONGO_AUTH_DB: {MONGO_AUTH_DB}")
+    print(f"MONGO_USERNAME: {MONGO_USERNAME}")
+    # Avoid printing password directly: print(f"MONGO_PASSWORD: {'*' * len(MONGO_PASSWORD) if MONGO_PASSWORD else 'Not Set'}")
+    print(f"MONGO_URI: mongodb://{MONGO_USERNAME}:******@{MONGO_IP}:{MONGO_PORT}/?authSource={MONGO_AUTH_DB}") # Mask password in URI print
+    print(f"TAX_RATE_PERCENT: {TAX_RATE_PERCENT}")
+    print("--------------------------\n")
