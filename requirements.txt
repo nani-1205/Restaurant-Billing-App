@@ -1,9 +1,4 @@
 Flask>=2.0
 pymongo>=4.0
-python-dotenv>=0.19
-# Optional: Add Flask-WTF later for better forms
-# Flask-WTF>=1.0
-# email_validator
-# Optional: Add Flask-Login for authentication
-# Flask-Login>=0.6
-# werkzeug # (Often needed implicitly, good to list)
+python-dotenv>=0.19 # If using .env for config
+werkzeug>=2.0 # Often needed for Flask updates

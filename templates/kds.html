@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Kitchen Display System (KDS){% endblock %}
+
+{% block head_extra %}
+<style>
+.kds-card { margin-bottom: 1rem; }
+.kds-item { border-bottom: 1px solid #eee; padding-bottom: 0.5rem; margin-bottom: 0.5rem; }
+.kds-item:last-child { border-bottom: none; }
+.status-pending { font-weight: bold; color: orange; }
+.status-preparing { font-weight: bold; color: blue; }
+</style>
+<!-- Optional: Meta refresh for basic auto-update -->
+<!-- <meta http-equiv="refresh" content="30"> -->
+{% endblock %}
+
+
+{% block content %}
+    <h2>Kitchen Display System (KDS)</h2>
+    <p class="text-muted">Showing items with status 'Pending' or 'Preparing' from open orders. Refresh page for updates.</p>
+     <hr>
+
+     {% if db_error %}
+        <div class="alert alert-danger">Database connection error. KDS cannot load items.</div>
+     {% elif kds_items %}
+        <div class="row">
+        {% for item in kds_items %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card kds-card">
+                    <div class="card-header bg-light">
+                        <strong>Table: {{ item.table_number }}</strong>
+                        <small class="text-muted float-end">
+                           {{ item.order_time.strftime('%H:%M:%S') if item.order_time else 'N/A' }}
+                        </small>
+                    </div>
+                    <div class="card-body">
+                       <div class="kds-item">
+                            <h5>{{ item.item_name }} (x{{ item.quantity }})</h5>
+                            <p>Status: <span class="status-{{ item.status }}">{{ item.status|capitalize }}</span></p>
+                            <div class="btn-group btn-group-sm">
+                                {% if item.status == 'pending' %}
+                                 <form action="{{ url_for('order_update_item_status', order_id=item.order_id, item_index=item.item_index) }}" method="POST" class="d-inline">
+                                     <input type="hidden" name="status" value="preparing">
+                                     <button type="submit" class="btn btn-primary">Start Preparing</button>
+                                 </form>
+                                {% elif item.status == 'preparing' %}
+                                 <form action="{{ url_for('order_update_item_status', order_id=item.order_id, item_index=item.item_index) }}" method="POST" class="d-inline">
+                                     <input type="hidden" name="status" value="served">
+                                     <button type="submit" class="btn btn-success">Mark Served</button>
+                                 </form>
+                                {% endif %}
+                                 <!-- Optional: Cancel button -->
+                                 <form action="{{ url_for('order_update_item_status', order_id=item.order_id, item_index=item.item_index) }}" method="POST" class="d-inline" onsubmit="return confirm('Cancel this item?');">
+                                     <input type="hidden" name="status" value="cancelled">
+                                     <button type="submit" class="btn btn-outline-danger">Cancel</button>
+                                 </form>
+                            </div>
+                       </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">No pending items for the kitchen right now.</div>
+    {% endif %}
+{% endblock %}
+
+{% block scripts_extra %}
+    <!-- Add Javascript here for AJAX based updates if needed -->
+{% endblock %}

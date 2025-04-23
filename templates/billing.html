@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Billing - Pending Bills{% endblock %}
+
+{% block content %}
+<h2>Pending Bills (Closed Orders)</h2>
+<p class="text-muted">These orders are closed and ready for payment finalization.</p>
+<hr>
+
+{% if orders %}
+<div class="list-group">
+    {% for order in orders %}
+    <a href="{{ url_for('bill_view', order_id=order._id) }}" class="list-group-item list-group-item-action flex-column align-items-start">
+        <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">Order for Table {{ order.table_number }}</h5>
+            <small class="text-muted">Closed: {{ order.closed_time.strftime('%Y-%m-%d %H:%M') if order.closed_time else 'N/A' }}</small>
+        </div>
+        <p class="mb-1">
+           Total Amount: <strong>${{ "%.2f"|format(order.total_amount) }}</strong>
+           ({{ order.items|length }} item(s))
+        </p>
+        <small class="text-muted">Order ID: {{ order._id }}</small>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">No orders are currently waiting for billing.</div>
+{% endif %}
+
+{% endblock %}

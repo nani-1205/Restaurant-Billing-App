@@ -1,73 +1,28 @@
-{% extends "layout.html" %}
-
-{% block title %}{{ title }}{% endblock %}
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1><i class="bi bi-speedometer2"></i> {{ title }}</h1>
-<p>Welcome to the Restaurant Management System.</p>
-
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
-    <div class="col">
-        <div class="card text-white bg-primary h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title">Active Orders</h5>
-                        <p class="card-text fs-3">{{ stats.active_orders }}</p>
-                    </div>
-                    <i class="bi bi-receipt-cutoff fs-1"></i>
-                </div>
-            </div>
-             <a href="{{ url_for('orders.list_orders', filter_status='active') }}" class="card-footer text-white d-flex justify-content-between">
-                <span>View Details</span>
-                <i class="bi bi-arrow-right-circle"></i>
-            </a>
+<div class="px-4 py-5 my-5 text-center">
+    <h1 class="display-5 fw-bold">Restaurant POS Dashboard</h1>
+    <div class="col-lg-6 mx-auto">
+      <p class="lead mb-4">Welcome! Use the navigation bar to manage menu items, tables, orders, and view reports.</p>
+      {% if db_error %}
+        <div class="alert alert-danger">
+            <strong>Database Error:</strong> Could not connect to the database. Please ensure MongoDB is running and configuration is correct.
         </div>
-    </div>
-    <div class="col">
-        <div class="card text-white bg-warning h-100">
-             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title">Occupied Tables</h5>
-                        <p class="card-text fs-3">{{ stats.occupied_tables }}</p>
-                    </div>
-                     <i class="bi bi-people-fill fs-1"></i>
-                </div>
-            </div>
-            <a href="{{ url_for('tables.list_tables') }}" class="card-footer text-white d-flex justify-content-between">
-                 <span>View Details</span>
-                 <i class="bi bi-arrow-right-circle"></i>
-            </a>
+      {% else %}
+        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+            <a href="{{ url_for('tables_manage') }}" class="btn btn-primary btn-lg px-4 gap-3">Manage Tables</a>
+            <a href="{{ url_for('menu_manage') }}" class="btn btn-outline-secondary btn-lg px-4">Manage Menu</a>
         </div>
-    </div>
-    <div class="col">
-        <div class="card text-white bg-danger h-100">
-             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                     <div>
-                        <h5 class="card-title">Low Stock Items</h5>
-                        <p class="card-text fs-3">{{ stats.low_stock_items }}</p>
-                    </div>
-                     <i class="bi bi-cart-dash-fill fs-1"></i>
-                </div>
-            </div>
-            <a href="{{ url_for('inventory.list_items') }}" class="card-footer text-white d-flex justify-content-between">
-                 <span>View Details</span>
-                 <i class="bi bi-arrow-right-circle"></i>
-            </a>
+        <hr class="my-4">
+        <h4>Quick Links</h4>
+        <div class="list-group">
+            <a href="{{ url_for('kds') }}" class="list-group-item list-group-item-action">Kitchen Display (KDS)</a>
+            <a href="{{ url_for('billing') }}" class="list-group-item list-group-item-action">Pending Bills</a>
+            <a href="{{ url_for('reports') }}" class="list-group-item list-group-item-action">View Reports</a>
         </div>
+       {% endif %}
     </div>
-</div>
-
-{# Quick Links #}
-<h2>Quick Links</h2>
-<div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
-    <div class="col"><a href="{{ url_for('orders.new_order') }}" class="btn btn-lg btn-outline-success w-100 py-3"><i class="bi bi-plus-circle me-2"></i>New Order</a></div>
-    <div class="col"><a href="{{ url_for('billing.index') }}" class="btn btn-lg btn-outline-primary w-100 py-3"><i class="bi bi-cash-coin me-2"></i>Billing</a></div>
-    <div class="col"><a href="{{ url_for('tables.list_tables') }}" class="btn btn-lg btn-outline-info w-100 py-3"><i class="bi bi-grid-3x2-gap-fill me-2"></i>Manage Tables</a></div>
-    <div class="col"><a href="{{ url_for('menu.list_items') }}" class="btn btn-lg btn-outline-secondary w-100 py-3"><i class="bi bi-book me-2"></i>Manage Menu</a></div>
-    <div class="col"><a href="{{ url_for('kds.kds_view') }}" class="btn btn-lg btn-outline-dark w-100 py-3"><i class="bi bi-display me-2"></i>KDS View</a></div>
-</div>
-
+  </div>
 {% endblock %}

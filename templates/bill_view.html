@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Bill for Order {{ order._id }}{% endblock %}
+
+{% block content %}
+    <h2>Bill Details - Table {{ order.table_number }}</h2>
+    <p class="text-muted">Order ID: {{ order._id }} | Status: {{ order.status|capitalize }}</p>
+    {% if bill %}
+     <p class="text-success"><strong>Billed On:</strong> {{ bill.billed_at.strftime('%Y-%m-%d %H:%M') if bill.billed_at else 'N/A' }} | <strong>Payment:</strong> {{ bill.payment_method }}</p>
+    {% endif %}
+    <hr>
+
+    <div class="card">
+        <div class="card-header">
+            Order Summary
+        </div>
+        <div class="card-body">
+             <ul class="list-group list-group-flush">
+                {% for item in order.items %}
+                    {% if item.status != 'cancelled' %} {# Don't show cancelled items on bill #}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ item.quantity }} x {{ item.name }}</span>
+                        <span>${{ "%.2f"|format(item.price * item.quantity) }}</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+             </ul>
+        </div>
+        <div class="card-footer">
+             <ul class="list-group list-group-flush">
+                 <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>Subtotal</span>
+                    <strong>${{ "%.2f"|format(order.subtotal) }}</strong>
+                 </li>
+                 <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>Tax ({{ tax_rate }}%)</span>
+                    <strong>${{ "%.2f"|format(order.tax) }}</strong>
+                 </li>
+                 {% if bill and bill.discount > 0 %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center text-danger">
+                    <span>Discount Applied</span>
+                    <strong>-${{ "%.2f"|format(bill.discount) }}</strong>
+                 </li>
+                 {% endif %}
+                  <li class="list-group-item d-flex justify-content-between align-items-center fw-bold fs-5">
+                    <span>Total Amount</span>
+                    <span>${{ "%.2f"|format(bill.total_amount if bill else order.total_amount) }}</span>
+                 </li>
+             </ul>
+        </div>
+    </div>
+
+    {% if order.status == 'closed' %} {# Show payment form only if not yet billed #}
+    <div class="card mt-4">
+        <div class="card-header">Finalize Payment</div>
+        <div class="card-body">
+             <form action="{{ url_for('bill_finalize', order_id=order._id) }}" method="POST">
+                 <div class="row g-3 align-items-end">
+                     <div class="col-md-4">
+                         <label for="payment_method" class="form-label">Payment Method</label>
+                         <select class="form-select" id="payment_method" name="payment_method">
+                             <option value="Cash" selected>Cash</option>
+                             <option value="Card">Card</option>
+                             <option value="Online">Online</option>
+                             <option value="Other">Other</option>
+                         </select>
+                     </div>
+                      <div class="col-md-3">
+                        <label for="discount" class="form-label">Discount ($)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="discount" name="discount" value="0.00">
+                    </div>
+                     <div class="col-md-auto">
+                        <button type="submit" class="btn btn-success">Mark as Paid & Finalize</button>
+                     </div>
+                 </div>
+             </form>
+        </div>
+    </div>
+    {% elif order.status == 'billed' %}
+        <div class="alert alert-success mt-4" role="alert">
+          This bill has been finalized and paid.
+        </div>
+    {% endif %}
+
+     <div class="mt-4">
+        <a href="{{ url_for('billing') }}" class="btn btn-secondary">Back to Billing List</a>
+         <!-- Add a Print button later if needed -->
+    </div>
+
+{% endblock %}

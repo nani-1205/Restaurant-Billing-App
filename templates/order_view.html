@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}View Order - Table {{ order.table_number }}{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Order Details - Table {{ order.table_number }}</h2>
+        <div>
+            <span class="badge fs-6
+                {% if order.status == 'open' %} bg-primary
+                {% elif order.status == 'closed' %} bg-warning text-dark
+                {% elif order.status == 'billed' %} bg-success
+                {% elif order.status == 'cancelled' %} bg-danger
+                {% else %} bg-secondary
+                {% endif %}">
+                Status: {{ order.status|capitalize }}
+            </span>
+        </div>
+    </div>
+    <p class="text-muted">Order ID: {{ order._id }} | Opened: {{ order.order_time.strftime('%Y-%m-%d %H:%M') if order.order_time else 'N/A' }}</p>
+    <hr>
+
+    <!-- Order Items List -->
+    <div class="card mb-4">
+        <div class="card-header">Ordered Items</div>
+        <div class="card-body">
+            {% if order.items %}
+            <ul class="list-group list-group-flush">
+                {% for item in order.items %}
+                <li class="list-group-item d-flex justify-content-between align-items-center {% if item.status == 'cancelled' %}text-muted text-decoration-line-through{% endif %}">
+                    <div>
+                        <strong>{{ item.quantity }} x {{ item.name }}</strong>
+                        <small class="d-block">
+                            (${{"%.2f"|format(item.price)}} each)
+                            {% if item.status != 'cancelled' %}
+                             | KDS: <span class="badge
+                                {% if item.status == 'pending' %} bg-warning text-dark
+                                {% elif item.status == 'preparing' %} bg-info text-dark
+                                {% elif item.status == 'served' %} bg-success
+                                {% else %} bg-secondary
+                                {% endif %}">{{ item.status|capitalize }}</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="d-flex align-items-center">
+                         <span class="me-3">${{ "%.2f"|format(item.price * item.quantity) }}</span>
+                         {% if order.status == 'open' and item.status != 'cancelled' %} {# Only allow cancel on open, non-cancelled items #}
+                         <form action="{{ url_for('order_update_item_status', order_id=order._id, item_index=loop.index0) }}" method="POST" class="d-inline" onsubmit="return confirm('Cancel this item ({{item.name}})? This cannot be undone easily.');">
+                             <input type="hidden" name="status" value="cancelled">
+                             <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancel Item">×</button>
+                         </form>
+                         {% endif %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p>No items have been added to this order yet.</p>
+            {% endif %}
+        </div>
+        <div class="card-footer">
+             <ul class="list-group list-group-flush">
+                 <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>Subtotal</span>
+                    <strong>${{ "%.2f"|format(order.subtotal) }}</strong>
+                 </li>
+                 <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>Tax ({{ config.TAX_RATE_PERCENT }}%)</span>
+                    <strong>${{ "%.2f"|format(order.tax) }}</strong>
+                 </li>
+                  <li class="list-group-item d-flex justify-content-between align-items-center fw-bold fs-5">
+                    <span>Total</span>
+                    <span>${{ "%.2f"|format(order.total_amount) }}</span>
+                 </li>
+             </ul>
+        </div>
+    </div>
+
+    <!-- Add More Items Form (Only if order is open) -->
+    {% if order.status == 'open' %}
+    <div class="card mb-4">
+        <div class="card-header">Add More Items</div>
+        <div class="card-body">
+            <form action="{{ url_for('order_add_item', order_id=order._id) }}" method="POST" class="row g-3 align-items-end">
+                 <div class="col-md-6">
+                    <label for="menu_item_id" class="form-label">Select Item</label>
+                    <select class="form-select" id="menu_item_id" name="menu_item_id" required>
+                        <option value="" selected disabled>-- Choose Item --</option>
+                        {% for category, items_in_category in menu_items|groupby('category') %}
+                            <optgroup label="{{ category or 'Uncategorized' }}">
+                                {% for item in items_in_category %}
+                                    <option value="{{ item._id }}">{{ item.name }} (${{ "%.2f"|format(item.price) }})</option>
+                                {% endfor %}
+                            </optgroup>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="quantity" class="form-label">Quantity</label>
+                    <input type="number" class="form-control" id="quantity" name="quantity" value="1" min="1" required>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" class="btn btn-primary">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Order Actions -->
+    <div class="mt-4">
+        {% if order.status == 'open' %}
+        <form action="{{ url_for('order_close', order_id=order._id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to close this order for billing? Items cannot be added after closing.');">
+            <button type="submit" class="btn btn-warning">Close Order (Ready for Bill)</button>
+        </form>
+        {% elif order.status == 'closed' %}
+         <a href="{{ url_for('bill_view', order_id=order._id) }}" class="btn btn-success">Go to Bill</a>
+        {% elif order.status == 'billed' %}
+         <a href="{{ url_for('bill_view', order_id=order._id) }}" class="btn btn-info">View Final Bill</a>
+         <span class="ms-2 fst-italic text-success">Order Paid and Completed.</span>
+        {% endif %}
+
+        <a href="{{ url_for('tables_manage') }}" class="btn btn-secondary">Back to Tables</a>
+        <!-- Add Print Order button if needed -->
+    </div>
+
+{% endblock %}

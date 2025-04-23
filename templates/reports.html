@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Reports & Analytics{% endblock %}
+
+{% block content %}
+    <h2>Reports & Analytics</h2>
+    <hr>
+
+     {% if db_error %}
+        <div class="alert alert-danger">Database connection error. Reports cannot be generated.</div>
+     {% else %}
+        <div class="row">
+            <!-- Sales Summary Card -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">Today's Sales Summary</div>
+                    <div class="card-body">
+                        <h5 class="card-title">Total Sales Today</h5>
+                        <p class="card-text fs-4 fw-bold">${{ "%.2f"|format(report_data.today_total_sales) }}</p>
+                        <h6 class="card-subtitle mb-2 text-muted">Number of Bills Today</h6>
+                        <p class="card-text fs-5">{{ report_data.today_bill_count }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Selling Items Card -->
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">Top Selling Items (All Time)</div>
+                    <div class="card-body">
+                        {% if report_data.top_selling_items %}
+                        <ul class="list-group list-group-flush">
+                            {% for item in report_data.top_selling_items %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ item._id }}
+                                <span class="badge bg-primary rounded-pill">{{ item.total_quantity }} sold</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted">No sales data available yet to determine top items.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr>
+        <p class="text-muted">More detailed reports (date ranges, visualizations) can be added here.</p>
+
+     {% endif %}
+{% endblock %}
