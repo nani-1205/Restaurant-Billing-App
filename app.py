@@ -162,10 +162,12 @@ def inject_config():
 def index():
     """Dashboard/Home Page"""
     db_instance = get_db()
-    db_error_flag = not bool(db_instance) # Check if DB connection exists now
+    # --- FIX: Compare db_instance with None ---
+    db_error_flag = db_instance is None # Correct way to check
     stats = {} # Initialize stats
 
-    if db_instance:
+    # Only try to access db if connection exists
+    if not db_error_flag: # Equivalent to: if db_instance is not None:
         try:
             stats['open_orders'] = db_instance.orders.count_documents({"status": "open"})
             stats['available_tables'] = db_instance.tables.count_documents({"status": "available"})
@@ -175,10 +177,9 @@ def index():
             print(f"Error fetching dashboard stats: {e}")
             flash("Could not fetch dashboard statistics due to a database issue.", "warning")
             db_error_flag = True # Mark DB as having issues if stats fail
-    else:
-        # Flash message handled by before_request if connection failed
-        pass # Render basic page indicating DB error
+    # No need for an else block here, db_error_flag is already set correctly
 
+    # Pass the correct error flag to the template
     return render_template('index.html', stats=stats, db_error=db_error_flag)
 
 # --- Menu Management ---
@@ -618,10 +619,6 @@ def order_new(table_id):
                     else:
                         # Inconsistent state: Table occupied but no linked open order found
                         flash(f"Table {table.get('table_number')} marked occupied, but linked order not open/found.", "warning")
-                        # Consider resetting table status here after logging the issue
-                        # print(f"Resetting status for table {table.get('table_number')} due to inconsistent state.")
-                        # db_instance.tables.update_one({"_id": table_obj_id}, {"$set": {"status": "available", "updated_at": datetime.utcnow()}, "$unset": {"current_order_id": ""}})
-                        # flash("Table status reset to available.", "info")
                         return redirect(url_for('tables_manage'))
                  except Exception as e:
                       flash(f"Error checking existing order for table {table.get('table_number')}: {e}", "danger")
@@ -899,10 +896,10 @@ def order_close(order_id):
 @app.route('/billing')
 def billing():
     db_instance = get_db()
-    db_error_flag = not bool(db_instance)
+    db_error_flag = db_instance is None # Check if db is None
     closed_orders = []
 
-    if db_instance:
+    if not db_error_flag: # Only query if db connection exists
         try:
             closed_orders = list(db_instance.orders.find({"status": "closed"})
                                .sort("closed_time", DESCENDING))
@@ -913,9 +910,7 @@ def billing():
             flash(f"Error fetching pending bills: {e}", "danger")
             traceback.print_exc()
             db_error_flag = True
-    else:
-        # Before_request already flashed if initial connection failed
-        pass
+    # No need for else block, before_request handles initial connection flash
 
     return render_template('billing.html', orders=closed_orders, db_error=db_error_flag)
 
@@ -1053,10 +1048,10 @@ def bill_finalize(order_id):
 @app.route('/kds')
 def kds():
     db_instance = get_db()
-    db_error_flag = not bool(db_instance)
+    db_error_flag = db_instance is None
     kds_items = []
 
-    if db_instance:
+    if not db_error_flag:
         try:
             open_orders = list(db_instance.orders.find(
                     {"status": "open"},
@@ -1083,9 +1078,7 @@ def kds():
             flash(f"Error fetching KDS items: {e}", "danger")
             traceback.print_exc()
             db_error_flag = True
-    else:
-         # Before_request already flashed
-         pass
+    # No else needed, db_error_flag handles template rendering
 
     return render_template('kds.html', kds_items=kds_items, db_error=db_error_flag)
 
@@ -1095,9 +1088,9 @@ def kds():
 def reports():
     db_instance = get_db()
     report_data = {}
-    db_error_flag = not bool(db_instance)
+    db_error_flag = db_instance is None
 
-    if not db_instance:
+    if db_error_flag:
         # Before_request already flashed
         return render_template('reports.html', report_data=report_data, db_error=True)
 
@@ -1147,7 +1140,7 @@ def reports():
 if __name__ == '__main__':
     print("--- Restaurant Billing App ---")
     # Attempt initial DB connection on startup
-    if connect_db() is not None: # FIX applied here
+    if connect_db() is not None: # Correct check
         # --- Connection successful ---
         print(f"Successfully connected to database '{config.MONGO_DB_NAME}'.")
         print(f"Flask ENV: {config.FLASK_ENV}")
@@ -1157,7 +1150,6 @@ if __name__ == '__main__':
         # Note: app.run() is for development. Use WSGI server in production.
         try:
             # Set use_reloader=False if running under PM2 or similar process managers
-            # that handle restarts, otherwise you might get multiple restarts.
             use_reloader = config.DEBUG # Only use reloader if DEBUG is True
             print(f"Flask internal reloader: {'Enabled' if use_reloader else 'Disabled'}")
             app.run(host='0.0.0.0', port=5000, debug=config.DEBUG, use_reloader=use_reloader)
