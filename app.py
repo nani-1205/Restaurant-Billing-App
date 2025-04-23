@@ -17,6 +17,14 @@ app = Flask(__name__)
 app.config.from_object(config) # Load config from config.py
 app.secret_key = app.config['SECRET_KEY'] # Needed for flash messages
 
+# --- FORCE TEMPLATE RELOAD (for debugging this issue) ---
+# This should typically only be True if config.DEBUG is True,
+# but we force it here to try and solve the template loading problem.
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+print("DEBUG: TEMPLATES_AUTO_RELOAD forced to True") # Add print statement
+# --- END FORCE TEMPLATE RELOAD ---
+
+
 # --- Database Setup ---
 client = None
 db = None
@@ -163,13 +171,11 @@ def inject_config():
     }
     return dict(config=safe_config)
 
-# --->>> CONTEXT PROCESSOR TO FIX 'now' UNDEFINED ERROR <<<---
 @app.context_processor
 def inject_current_year():
     """Injects the current year into all templates."""
     # Using UTC is generally safer for server-side timestamps
     return {'current_year': datetime.utcnow().year}
-# --->>> END OF CONTEXT PROCESSOR <<<---
 
 
 # --- Routes ---
