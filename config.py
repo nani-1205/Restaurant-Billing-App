@@ -18,19 +18,17 @@ else:
 
 
 # --- Database Configuration ---
-# Load from environment variables, providing sensible defaults for development if needed
+# Load individual components from environment variables.
+# MongoClient in app.py will use these directly.
+# Provide sensible defaults mainly for local development if .env is missing.
+
 MONGO_USERNAME = os.environ.get("MONGO_USERNAME", "default_user")
 MONGO_PASSWORD = os.environ.get("MONGO_PASSWORD", "default_password")
 MONGO_IP = os.environ.get("MONGO_IP", "127.0.0.1")
 # Ports are typically integers, so cast it
 MONGO_PORT = int(os.environ.get("MONGO_PORT", 27017))
 MONGO_DB_NAME = os.environ.get("MONGO_DB_NAME", "restaurant_db_dev") # Maybe use diff name for dev
-MONGO_AUTH_DB = os.environ.get("MONGO_AUTH_DB", "admin")
-
-# Construct the MongoDB URI using f-string
-# Ensure username/password are URL-encoded if they contain special characters
-# (pymongo usually handles basic encoding, but be mindful)
-MONGO_URI = f"mongodb://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_IP}:{MONGO_PORT}/?authSource={MONGO_AUTH_DB}"
+MONGO_AUTH_DB = os.environ.get("MONGO_AUTH_DB", "admin") # The database to authenticate against
 
 # --- Flask Configuration ---
 # Load secret key from environment or use a default (INSECURE FOR PRODUCTION)
@@ -42,19 +40,37 @@ if SECRET_KEY == "a_very_insecure_default_secret_key_for_dev_only":
 # Set debug mode based on environment variable (e.g., FLASK_DEBUG=1) or default to False for safety
 # Flask automatically uses FLASK_DEBUG environment variable if set.
 # Setting it here provides an explicit default if FLASK_DEBUG isn't set.
-DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1" # "1" means True
+# Common practice: Set DEBUG based on an environment variable like FLASK_ENV=development
+FLASK_ENV = os.environ.get('FLASK_ENV', 'production') # Default to production for safety
+DEBUG = FLASK_ENV == 'development' # Set DEBUG to True only if FLASK_ENV is 'development'
 
 # --- Application Specific ---
 # Load tax rate from environment or use a default
-TAX_RATE_PERCENT = float(os.environ.get("TAX_RATE_PERCENT", 5.0))
+try:
+    TAX_RATE_PERCENT = float(os.environ.get("TAX_RATE_PERCENT", 5.0))
+except ValueError:
+    print("Warning: Invalid TAX_RATE_PERCENT in environment. Using default 5.0")
+    TAX_RATE_PERCENT = 5.0
 
-# --- Print loaded config for verification (optional, careful with passwords in logs) ---
-# print("--- Configuration Loaded ---")
-# print(f"MONGO_IP: {MONGO_IP}")
-# print(f"MONGO_PORT: {MONGO_PORT}")
-# print(f"MONGO_DB_NAME: {MONGO_DB_NAME}")
-# print(f"MONGO_USERNAME: {MONGO_USERNAME}")
-# print(f"MONGO_URI: mongodb://{MONGO_USERNAME}:****@{MONGO_IP}:{MONGO_PORT}/?authSource={MONGO_AUTH_DB}") # Hide password
-# print(f"DEBUG Mode: {DEBUG}")
-# print(f"TAX_RATE_PERCENT: {TAX_RATE_PERCENT}")
-# print("--------------------------")
+
+# --- Optional: Print loaded config for verification (careful with sensitive info) ---
+print("--- Configuration Values ---")
+print(f"FLASK_ENV: {FLASK_ENV}")
+print(f"DEBUG Mode: {DEBUG}")
+print(f"MONGO_IP: {MONGO_IP}")
+print(f"MONGO_PORT: {MONGO_PORT}")
+print(f"MONGO_DB_NAME: {MONGO_DB_NAME}")
+print(f"MONGO_AUTH_DB: {MONGO_AUTH_DB}")
+print(f"MONGO_USERNAME: {MONGO_USERNAME}")
+# Avoid printing password in logs:
+# print(f"MONGO_PASSWORD: {'*' * len(MONGO_PASSWORD) if MONGO_PASSWORD else 'Not Set'}")
+print(f"TAX_RATE_PERCENT: {TAX_RATE_PERCENT}")
+print("--------------------------")
+
+# --- Sanity Checks (Optional but recommended) ---
+if not SECRET_KEY or SECRET_KEY == "a_very_insecure_default_secret_key_for_dev_only":
+    # This check is redundant with the warning above, but emphasizes importance
+    print("CRITICAL WARNING: Flask SECRET_KEY is not set or is insecure.")
+
+if not MONGO_USERNAME or not MONGO_PASSWORD:
+    print("Warning: MongoDB username or password might be missing.")
