@@ -19,7 +19,7 @@
                     {% if item.status != 'cancelled' %} {# Don't show cancelled items on bill #}
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>{{ item.quantity }} x {{ item.name }}</span>
-                        <span>${{ "%.2f"|format(item.price * item.quantity) }}</span>
+                        <span>₹{{ "%.2f"|format(item.price * item.quantity) }}</span> {# <-- Currency symbol updated here #}
                     </li>
                     {% endif %}
                 {% endfor %}
@@ -29,21 +29,21 @@
              <ul class="list-group list-group-flush">
                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span>Subtotal</span>
-                    <strong>${{ "%.2f"|format(order.subtotal) }}</strong>
+                    <strong>₹{{ "%.2f"|format(order.subtotal) }}</strong> {# <-- Currency symbol updated here #}
                  </li>
                  <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span>Tax ({{ tax_rate }}%)</span>
-                    <strong>${{ "%.2f"|format(order.tax) }}</strong>
+                    <strong>₹{{ "%.2f"|format(order.tax) }}</strong> {# <-- Currency symbol updated here #}
                  </li>
                  {% if bill and bill.discount > 0 %}
                   <li class="list-group-item d-flex justify-content-between align-items-center text-danger">
                     <span>Discount Applied</span>
-                    <strong>-${{ "%.2f"|format(bill.discount) }}</strong>
+                    <strong>-₹{{ "%.2f"|format(bill.discount) }}</strong> {# <-- Currency symbol updated here #}
                  </li>
                  {% endif %}
                   <li class="list-group-item d-flex justify-content-between align-items-center fw-bold fs-5">
                     <span>Total Amount</span>
-                    <span>${{ "%.2f"|format(bill.total_amount if bill else order.total_amount) }}</span>
+                    <span>₹{{ "%.2f"|format(bill.total_amount if bill else order.total_amount) }}</span> {# <-- Currency symbol updated here #}
                  </li>
              </ul>
         </div>
@@ -65,7 +65,7 @@
                          </select>
                      </div>
                       <div class="col-md-3">
-                        <label for="discount" class="form-label">Discount ($)</label>
+                        <label for="discount" class="form-label">Discount (₹)</label> {# <-- Currency symbol updated in label #}
                         <input type="number" step="0.01" min="0" class="form-control" id="discount" name="discount" value="0.00">
                     </div>
                      <div class="col-md-auto">

@@ -15,7 +15,7 @@
             <small class="text-muted">Closed: {{ order.closed_time.strftime('%Y-%m-%d %H:%M') if order.closed_time else 'N/A' }}</small>
         </div>
         <p class="mb-1">
-           Total Amount: <strong>${{ "%.2f"|format(order.total_amount) }}</strong>
+           Total Amount: <strong>₹{{ "%.2f"|format(order.total_amount) }}</strong> {# <-- Currency symbol updated here #}
            ({{ order.items|length }} item(s))
         </p>
         <small class="text-muted">Order ID: {{ order._id }}</small>

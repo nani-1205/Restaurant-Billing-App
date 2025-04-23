@@ -15,7 +15,7 @@
                     <div class="card-header">Today's Sales Summary</div>
                     <div class="card-body">
                         <h5 class="card-title">Total Sales Today</h5>
-                        <p class="card-text fs-4 fw-bold">${{ "%.2f"|format(report_data.today_total_sales) }}</p>
+                        <p class="card-text fs-4 fw-bold">₹{{ "%.2f"|format(report_data.today_total_sales) }}</p> {# <-- Currency symbol updated here #}
                         <h6 class="card-subtitle mb-2 text-muted">Number of Bills Today</h6>
                         <p class="card-text fs-5">{{ report_data.today_bill_count }}</p>
                     </div>

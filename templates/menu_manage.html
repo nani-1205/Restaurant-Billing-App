@@ -70,7 +70,7 @@
                 <tr>
                     <td>{{ item.name }}</td>
                     <td>{{ item.category or 'N/A' }}</td>
-                    <td>${{ "%.2f"|format(item.price) }}</td>
+                    <td>₹{{ "%.2f"|format(item.price) }}</td> {# <-- Currency symbol updated here #}
                     <td>{{ item.description or '-' }}</td>
                     <td>
                          <span class="badge {{ 'bg-success' if item.is_available else 'bg-secondary' }}">
