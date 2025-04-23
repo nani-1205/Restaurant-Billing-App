@@ -39,6 +39,8 @@ def connect_db():
                 serverSelectionTimeoutMS=5000, # Timeout for server selection
                 connectTimeoutMS=10000,        # Connection timeout
                 socketTimeoutMS=10000          # Socket operation timeout
+                # Consider adding tls=True if connecting to Atlas or TLS-enabled DB
+                # tlsAllowInvalidCertificates=True # USE WITH CAUTION for testing only
             )
             # The ismaster command is cheap and does not require auth. Validates connection.
             client.admin.command('ismaster')
@@ -451,7 +453,7 @@ def table_update_status(table_id):
         if unset_fields: update_operation["$unset"] = unset_fields
 
         if not update_operation:
-             message = "No update needed for table status." # Should not happen with status change
+             message = "No update needed for table status."
              if is_ajax: return jsonify({"success": True, "message": message}), 200
              else: flash(message, "info"); return redirect(redirect_url)
 
@@ -528,25 +530,32 @@ def order_new(table_id):
 
         # --- POST Request ---
         if request.method == 'POST':
-             if table.get('status') != 'available':
-                flash(f"Table {table.get('table_number')} is not available (Status: {table.get('status')}).", "warning")
+            # Check table status FIRST within the POST block
+            if table.get('status') != 'available':
+                flash(f"Table {table.get('table_number')} is not available (Status: {table.get('status')}). Cannot start new order.", "warning")
                 return redirect(url_for('tables_manage'))
 
-            order_items = []
+            # --- CORRECT INDENTATION STARTS HERE ---
+            # This block only runs if method is POST *and* table is available
+            order_items = [] # <--- Correctly indented
             items_processed_count = 0
             warnings = []
 
+            # Process initial items from the form
             for key, value in request.form.items():
                 if key.startswith("item_") and value and value != '0':
                     try:
                         quantity = int(value)
                         if quantity > 0:
+                            # Extract item ID from 'item_xxxx...'
                             item_id_str = key.split("_", 1)[1]
                             menu_item = db_instance.menu_items.find_one({"_id": ObjectId(item_id_str)})
                             if menu_item and menu_item.get('is_available'):
                                 order_item = {
-                                    "menu_item_id": menu_item['_id'], "name": menu_item['name'],
-                                    "price": menu_item['price'], "quantity": quantity,
+                                    "menu_item_id": menu_item['_id'],
+                                    "name": menu_item['name'],
+                                    "price": menu_item['price'],
+                                    "quantity": quantity,
                                     "status": "pending"
                                 }
                                 order_items.append(order_item)
@@ -555,23 +564,37 @@ def order_new(table_id):
                                 warnings.append(f"Item '{menu_item.get('name', item_id_str)}' is unavailable.")
                             else:
                                 warnings.append(f"Item ID {item_id_str} not found.")
-                    except (ValueError, IndexError, errors.PyMongoError, Exception) as e:
+                    except (ValueError, IndexError) as e:
+                         warnings.append(f"Invalid data submitted for field {key}: {e}")
+                    except errors.PyMongoError as e:
+                         warnings.append(f"Database error processing item {key}: {e}")
+                    except Exception as e: # Catch ObjectId errors etc.
                          warnings.append(f"Error processing item {key}: {type(e).__name__}")
                          print(f"Error processing {key}: {e}") # Log detailed error
                          traceback.print_exc()
 
-            for warning in warnings: flash(f"Warning: {warning}", "warning")
+            # Flash warnings *before* creating order
+            for warning in warnings:
+                flash(f"Warning: {warning}", "warning")
 
+            # Calculate totals and create order
             subtotal, tax, total = calculate_order_total(order_items)
             new_order = {
-                "table_id": table_obj_id, "table_number": table["table_number"],
-                "items": order_items, "status": "open", "order_time": datetime.utcnow(),
-                "subtotal": subtotal, "tax": tax, "total_amount": total,
-                "created_at": datetime.utcnow(), "updated_at": datetime.utcnow()
+                "table_id": table_obj_id,
+                "table_number": table["table_number"],
+                "items": order_items,
+                "status": "open",
+                "order_time": datetime.utcnow(),
+                "subtotal": subtotal,
+                "tax": tax,
+                "total_amount": total,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
             }
             result = db_instance.orders.insert_one(new_order)
             new_order_id = result.inserted_id
 
+            # Update table status
             db_instance.tables.update_one(
                 {"_id": table_obj_id},
                 {"$set": {"status": "occupied", "current_order_id": new_order_id, "updated_at": datetime.utcnow()}}
@@ -579,33 +602,44 @@ def order_new(table_id):
 
             flash(f"New order (ID: {new_order_id}) started for Table {table.get('table_number')} with {items_processed_count} item(s).", "success")
             return redirect(url_for('order_view', order_id=str(new_order_id)))
+            # --- END OF POST / AVAILABLE BLOCK ---
 
         # --- GET Request ---
+        # Prevent new order form display if table is not available
         if table.get('status') != 'available':
+             # Check if there's an existing OPEN order for this table if occupied
              if table.get('status') == 'occupied' and table.get('current_order_id'):
                  try:
-                    existing_order = db_instance.orders.find_one({"_id": table['current_order_id'], "status": "open"})
+                    # Make sure current_order_id is a valid ObjectId before querying
+                    existing_order = db_instance.orders.find_one({"_id": ObjectId(table['current_order_id']), "status": "open"})
                     if existing_order:
                         flash(f"Table {table.get('table_number')} is occupied. Redirecting to existing order.", "info")
                         return redirect(url_for('order_view', order_id=str(existing_order['_id'])))
                     else:
+                        # Inconsistent state: Table occupied but no linked open order found
                         flash(f"Table {table.get('table_number')} marked occupied, but linked order not open/found.", "warning")
+                        # Consider resetting table status here after logging the issue
+                        # print(f"Resetting status for table {table.get('table_number')} due to inconsistent state.")
+                        # db_instance.tables.update_one({"_id": table_obj_id}, {"$set": {"status": "available", "updated_at": datetime.utcnow()}, "$unset": {"current_order_id": ""}})
+                        # flash("Table status reset to available.", "info")
                         return redirect(url_for('tables_manage'))
                  except Exception as e:
                       flash(f"Error checking existing order for table {table.get('table_number')}: {e}", "danger")
                       traceback.print_exc()
                       return redirect(url_for('tables_manage'))
              else:
+                # Handles 'reserved', 'cleaning', etc. statuses
                 flash(f"Table {table.get('table_number')} is not available (Status: {table.get('status')}).", "warning")
                 return redirect(url_for('tables_manage'))
 
+        # If GET and table is available, show the form
         menu_items = list(db_instance.menu_items.find({"is_available": True}).sort([("category", 1), ("name", 1)]))
         return render_template('order_new.html', table=table, menu_items=menu_items)
 
     except errors.PyMongoError as e:
          flash(f"Database error processing order request: {e}", "danger")
          return redirect(url_for('tables_manage'))
-    except Exception as e:
+    except Exception as e: # Catch ObjectId errors etc.
         flash(f"Error processing order request: {e}", "danger")
         traceback.print_exc()
         return redirect(url_for('tables_manage'))
@@ -784,8 +818,10 @@ def order_update_item_status(order_id, item_index):
                 message = f"Item #{item_index+1} cancelled. Order totals updated."
 
             if is_ajax:
-                 return jsonify({"success": True, "message": message, "new_status": new_status,
-                                 "subtotal": subtotal, "tax": tax, "total": total})
+                 return jsonify({
+                     "success": True, "message": message, "new_status": new_status,
+                     "subtotal": subtotal, "tax": tax, "total": total
+                 })
             else:
                  flash(message, "success")
                  return redirect(request.referrer or default_redirect)
@@ -878,8 +914,8 @@ def billing():
             traceback.print_exc()
             db_error_flag = True
     else:
-        flash("Database connection error.", "danger")
-
+        # Before_request already flashed if initial connection failed
+        pass
 
     return render_template('billing.html', orders=closed_orders, db_error=db_error_flag)
 
@@ -967,7 +1003,7 @@ def bill_finalize(order_id):
         tax = order.get('tax', 0.0)
         original_total = order.get('total_amount', 0.0)
 
-        final_total_amount = round(max(0, original_total - discount), 2) # Ensure non-negative and round
+        final_total_amount = round(max(0, original_total - discount), 2)
 
         bill_doc = {
             "order_id": order['_id'], "table_number": order['table_number'],
@@ -1048,8 +1084,8 @@ def kds():
             traceback.print_exc()
             db_error_flag = True
     else:
-         flash("Database connection error.", "danger")
-
+         # Before_request already flashed
+         pass
 
     return render_template('kds.html', kds_items=kds_items, db_error=db_error_flag)
 
@@ -1062,7 +1098,7 @@ def reports():
     db_error_flag = not bool(db_instance)
 
     if not db_instance:
-        flash("Database connection error.", "danger")
+        # Before_request already flashed
         return render_template('reports.html', report_data=report_data, db_error=True)
 
     try:
@@ -1111,25 +1147,24 @@ def reports():
 if __name__ == '__main__':
     print("--- Restaurant Billing App ---")
     # Attempt initial DB connection on startup
-    # --- FIX: Compare the result with None ---
-    if connect_db() is not None:
+    if connect_db() is not None: # FIX applied here
         # --- Connection successful ---
         print(f"Successfully connected to database '{config.MONGO_DB_NAME}'.")
         print(f"Flask ENV: {config.FLASK_ENV}")
         print(f"Debug Mode: {config.DEBUG}")
-        print(f"Starting Flask development server on http://0.0.0.0:5000...")
-        # Use host='0.0.0.0' to make it accessible on your network
-        # Use debug=True only for development (reads from config.DEBUG)
-        # Note: app.run() is for development only. Use WSGI server in production.
+        print(f"Starting Flask server on http://0.0.0.0:5000...")
+
+        # Note: app.run() is for development. Use WSGI server in production.
         try:
-            # Consider using Waitress or Gunicorn even for local testing if needed
-            # from waitress import serve
-            # serve(app, host="0.0.0.0", port=5000)
-            app.run(host='0.0.0.0', port=5000, debug=config.DEBUG)
+            # Set use_reloader=False if running under PM2 or similar process managers
+            # that handle restarts, otherwise you might get multiple restarts.
+            use_reloader = config.DEBUG # Only use reloader if DEBUG is True
+            print(f"Flask internal reloader: {'Enabled' if use_reloader else 'Disabled'}")
+            app.run(host='0.0.0.0', port=5000, debug=config.DEBUG, use_reloader=use_reloader)
         except KeyboardInterrupt:
             print("\nFlask server stopped by user.")
         except Exception as e:
-            print(f"\nError running Flask development server: {e}")
+            print(f"\nError running Flask server: {e}")
             traceback.print_exc()
             exit(1) # Exit if server fails to run
     else:
