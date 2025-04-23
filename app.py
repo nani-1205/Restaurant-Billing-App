@@ -16,11 +16,23 @@ db = None
 def connect_db():
     """Establishes connection to MongoDB and ensures DB/Collections exist."""
     global client, db
-    if client is None:
+    # Only attempt connection if client is not already established
+    # Check if client is None OR if client is set but server is not available (e.g., after network issue)
+    needs_connection = client is None
+    if not needs_connection and client is not None:
         try:
-            print(f"Attempting to connect to MongoDB at: {config.MONGO_IP}:{config.MONGO_PORT}")
+            # Quick check if server is still reachable
+            client.admin.command('ping')
+        except (errors.ConnectionFailure, errors.ServerSelectionTimeoutError, AttributeError):
+             print("Existing client connection lost, will attempt reconnect.")
+             needs_connection = True
+             client = None # Reset client
+             db = None # Reset db
+
+    if needs_connection:
+        try:
+            print(f"Attempting to connect to MongoDB using URI from config...")
             # Ensure MONGO_URI is correctly constructed in config.py
-            # Example: MONGO_URI = f"mongodb://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_IP}:{MONGO_PORT}/?authSource={MONGO_AUTH_DB}"
             client = MongoClient(
                 config.MONGO_URI,
                 serverSelectionTimeoutMS=5000 # Timeout after 5 seconds
@@ -33,25 +45,26 @@ def connect_db():
             print(f"Using database: {config.MONGO_DB_NAME}")
 
             # Ensure collections exist (MongoDB creates them on first use, but good to check)
-            required_collections = ['menu_items', 'tables', 'orders', 'bills']
-            existing_collections = db.list_collection_names()
-            for coll in required_collections:
-                if coll not in existing_collections:
-                    db.create_collection(coll)
-                    print(f"Created collection: '{coll}'")
+            # Check only if db object was successfully created
+            if db is not None:
+                required_collections = ['menu_items', 'tables', 'orders', 'bills']
+                existing_collections = db.list_collection_names()
+                for coll in required_collections:
+                    if coll not in existing_collections:
+                        db.create_collection(coll)
+                        print(f"Created collection: '{coll}'")
 
         except errors.ServerSelectionTimeoutError as e:
             print(f"MongoDB connection failed (Timeout): {e}")
-            print(f"Attempted URI: {config.MONGO_URI}") # Print URI to help debug
+            # Don't print URI directly if it contains password, use masked version from config printout if needed.
+            # print(f"Attempted URI: {config.MONGO_URI}") # Be careful with passwords
             client = None
             db = None
         except errors.ConnectionFailure as e:
             print(f"MongoDB connection failed (ConnectionFailure): {e}")
-            print(f"Attempted URI: {config.MONGO_URI}") # Print URI to help debug
+            # print(f"Attempted URI: {config.MONGO_URI}") # Be careful with passwords
             client = None
             db = None
-            # You might want to exit the app or retry connection here
-            # For this example, we'll let routes fail if db is None
         except Exception as e:
             print(f"An error occurred during DB setup: {e}")
             client = None
@@ -68,13 +81,14 @@ def before_request_func():
 def get_db():
     """Returns the database instance, attempting to reconnect if necessary."""
     global db, client
-    if db is None:
+    if db is None: # CORRECT CHECK
         print("DB connection is None, attempting to reconnect...")
         return connect_db()
 
     # Optional: Add a ping check here for long-running apps to verify connection
     try:
         # Ping the database
+        # Use client.admin.command('ping') for synchronous PyMongo
         client.admin.command('ping')
     except (errors.ConnectionFailure, errors.ServerSelectionTimeoutError, AttributeError) as e:
          # Catch potential issues if client is None or connection lost
@@ -97,8 +111,8 @@ def calculate_order_total(items):
 def index():
     """Dashboard/Home Page"""
     db_instance = get_db()
-    db_error_flag = db_instance is None # Flag to indicate DB status to template
-    if not db_instance:
+    db_error_flag = db_instance is None # CORRECT CHECK (already was)
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error. Please check configuration and MongoDB status.", "danger")
         # Still render the template but indicate the error
         return render_template('index.html', db_error=True)
@@ -110,9 +124,14 @@ def index():
 def menu_manage():
     db_instance = get_db()
     db_error_flag = db_instance is None
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
-        return redirect(url_for('index'))
+        # If GET, show error on page. If POST, redirect.
+        if request.method == 'POST':
+             return redirect(url_for('menu_manage'))
+        # For GET allow rendering with error
+        return render_template('menu_manage.html', items=[], search_query='', db_error=True)
+
 
     if request.method == 'POST':
         try:
@@ -153,20 +172,20 @@ def menu_manage():
             ]
         }
 
-    if db_instance: # Only query if DB connection is valid
-        try:
-            items = list(db_instance.menu_items.find(query_filter).sort("category"))
-        except Exception as e:
-            flash(f"Error fetching menu items: {e}", "danger")
-            print(f"Error fetching menu items: {e}") # Log error
-            db_error_flag = True # Treat as DB error for display
+    # Only query if DB connection is valid (already checked db_instance is not None above)
+    try:
+        items = list(db_instance.menu_items.find(query_filter).sort("category"))
+    except Exception as e:
+        flash(f"Error fetching menu items: {e}", "danger")
+        print(f"Error fetching menu items: {e}") # Log error
+        db_error_flag = True # Treat as DB error for display
 
     return render_template('menu_manage.html', items=items, search_query=search_query, db_error=db_error_flag)
 
 @app.route('/menu/edit/<item_id>', methods=['GET', 'POST'])
 def menu_edit(item_id):
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return redirect(url_for('menu_manage'))
 
@@ -226,7 +245,7 @@ def menu_edit(item_id):
 @app.route('/menu/delete/<item_id>', methods=['POST'])
 def menu_delete(item_id):
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return redirect(url_for('menu_manage'))
 
@@ -245,7 +264,8 @@ def menu_delete(item_id):
 @app.route('/menu/toggle_availability/<item_id>', methods=['POST'])
 def menu_toggle_availability(item_id):
     db_instance = get_db()
-    if not db_instance: return jsonify({"success": False, "error": "Database connection error."}), 500
+    if db_instance is None: # CORRECT CHECK
+        return jsonify({"success": False, "error": "Database connection error."}), 500
 
     try:
         obj_id = ObjectId(item_id)
@@ -269,12 +289,11 @@ def menu_toggle_availability(item_id):
 def tables_manage():
     db_instance = get_db()
     db_error_flag = db_instance is None
-    if not db_instance and request.method == 'POST': # Prevent POST if DB down
+    if db_instance is None and request.method == 'POST': # CORRECT CHECK - Prevent POST if DB down
          flash("Database connection error. Cannot add table.", "danger")
          return redirect(url_for('tables_manage'))
-    elif not db_instance:
+    elif db_instance is None: # CORRECT CHECK - Allow GET render with error
         flash("Database connection error.", "danger")
-        # Allow rendering the page even if DB is down, but show error
         return render_template('tables_manage.html', tables=[], db_error=True)
 
     if request.method == 'POST': # Add new table
@@ -304,20 +323,20 @@ def tables_manage():
 
     # GET Request
     tables = []
-    if db_instance:
-        try:
-            tables = list(db_instance.tables.find().sort("table_number"))
-        except Exception as e:
-            flash(f"Error fetching tables: {e}", "danger")
-            print(f"Error fetching tables: {e}") # Log error
-            db_error_flag = True # Treat as DB error for display
+    # Only query if DB instance is not None (already checked above)
+    try:
+        tables = list(db_instance.tables.find().sort("table_number"))
+    except Exception as e:
+        flash(f"Error fetching tables: {e}", "danger")
+        print(f"Error fetching tables: {e}") # Log error
+        db_error_flag = True # Treat as DB error for display
 
     return render_template('tables_manage.html', tables=tables, db_error=db_error_flag)
 
 @app.route('/tables/update_status/<table_id>', methods=['POST'])
 def table_update_status(table_id):
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         # Handle POST request even if DB connection fails - redirect back with error
         flash("Database connection error. Cannot update table status.", "danger")
         return redirect(url_for('tables_manage'))
@@ -361,7 +380,7 @@ def table_update_status(table_id):
 @app.route('/tables/delete/<table_id>', methods=['POST'])
 def table_delete(table_id):
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return redirect(url_for('tables_manage'))
 
@@ -385,11 +404,10 @@ def table_delete(table_id):
 
 
 # --- Order Management ---
-# --- UPDATED order_new FUNCTION ---
 @app.route('/order/new/<table_id>', methods=['GET', 'POST'])
 def order_new(table_id):
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return redirect(url_for('tables_manage'))
 
@@ -485,13 +503,13 @@ def order_new(table_id):
 
         # GET Request: Show available menu items to add to the new order
         menu_items = []
-        if db_instance:
-            try:
-                menu_items = list(db_instance.menu_items.find({"is_available": True}).sort("category"))
-            except Exception as e:
-                 flash(f"Error fetching menu items for new order: {e}", "danger")
-                 print(f"Error fetching menu items for new order: {e}") # Log error
-                 # Allow page render but show error / potentially disable form?
+        # Only query if DB instance is not None (already checked above)
+        try:
+            menu_items = list(db_instance.menu_items.find({"is_available": True}).sort("category"))
+        except Exception as e:
+                flash(f"Error fetching menu items for new order: {e}", "danger")
+                print(f"Error fetching menu items for new order: {e}") # Log error
+                # Allow page render but show error / potentially disable form?
 
         return render_template('order_new.html', table=table, menu_items=menu_items)
 
@@ -503,13 +521,12 @@ def order_new(table_id):
         flash(f"Error starting new order: {e}", "danger")
         print(f"Error in order_new for table {table_id}: {e}") # Log the error server-side
         return redirect(url_for('tables_manage'))
-# --- END UPDATED order_new FUNCTION ---
 
 @app.route('/order/view/<order_id>', methods=['GET'])
 def order_view(order_id):
     db_instance = get_db()
     db_error_flag = db_instance is None
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         # Redirect or render an error template if DB is essential for view
         return redirect(url_for('index')) # Or maybe a dedicated orders list page
@@ -519,16 +536,16 @@ def order_view(order_id):
 
     try:
         obj_id = ObjectId(order_id)
-        if db_instance:
-            order = db_instance.orders.find_one({"_id": obj_id})
+        # Only query if DB instance is not None (already checked above)
+        order = db_instance.orders.find_one({"_id": obj_id})
 
         if not order:
             flash("Order not found.", "warning")
             return redirect(url_for('index')) # Or orders list page
 
         # Fetch available menu items to allow adding more (only if DB connected)
-        if db_instance:
-             menu_items = list(db_instance.menu_items.find({"is_available": True}).sort("category"))
+        # Only query if DB instance is not None (already checked above)
+        menu_items = list(db_instance.menu_items.find({"is_available": True}).sort("category"))
 
         # Calculate current totals for display (use get for safety)
         # Note: Totals should ideally be recalculated/stored on item add/update/cancel
@@ -551,7 +568,7 @@ def order_view(order_id):
 @app.route('/order/add_item/<order_id>', methods=['POST'])
 def order_add_item(order_id):
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error. Cannot add item.", "danger")
         # For AJAX: return jsonify({"success": False, "error": "Database connection error."}), 500
         # If form submission leads here, redirect back
@@ -629,7 +646,7 @@ def order_add_item(order_id):
 def order_update_item_status(order_id, item_index):
     """Updates the status of a specific item within an order (for KDS mainly)"""
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         # Handle both form and AJAX
         flash("Database connection error. Cannot update item status.", "danger")
         return jsonify({"success": False, "error": "Database connection error."}), 500
@@ -686,7 +703,7 @@ def order_update_item_status(order_id, item_index):
 def order_close(order_id):
     """Marks an order as 'closed', ready for billing."""
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return redirect(request.referrer or url_for('index'))
 
@@ -752,7 +769,7 @@ def billing():
     db_error_flag = db_instance is None
     closed_orders = []
 
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         # Render template but indicate error
         return render_template('billing.html', orders=closed_orders, db_error=True)
@@ -770,7 +787,7 @@ def billing():
 def bill_view(order_id):
     """Shows the bill details for a closed order, ready for payment."""
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return redirect(url_for('billing'))
 
@@ -814,7 +831,7 @@ def bill_view(order_id):
 def bill_finalize(order_id):
     """Marks the bill as paid, updates order/table status, creates bill record."""
     db_instance = get_db()
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return redirect(url_for('billing'))
 
@@ -904,7 +921,7 @@ def kds():
     db_error_flag = db_instance is None
     kds_items = []
 
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return render_template('kds.html', kds_items=[], db_error=True)
 
@@ -955,7 +972,7 @@ def reports():
         "top_selling_items": []
     }
 
-    if not db_instance:
+    if db_instance is None: # CORRECT CHECK
         flash("Database connection error.", "danger")
         return render_template('reports.html', report_data=report_data, db_error=True)
 
@@ -1006,7 +1023,7 @@ def reports():
 @app.context_processor
 def inject_global_vars():
     """Inject global variables/config into all templates."""
-    db_status_ok = get_db() is not None
+    db_status_ok = get_db() is not None # CORRECT CHECK
     return dict(
         config=config, # Make config accessible (use specific keys if preferred)
         db_status_ok=db_status_ok
