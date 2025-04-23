@@ -38,8 +38,12 @@
                         <a class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}" href="{{ url_for('reports') }}">Reports</a>
                     </li>
                 </ul>
-                <!-- Add Login/Logout links here if implementing user auth -->
-                <!-- Example:
+
+                <!--
+                Login/Logout links section is commented out because
+                Flask-Login (or similar) is not yet implemented.
+                Uncomment and adapt when adding user authentication.
+
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
@@ -55,6 +59,7 @@
                     {% endif %}
                 </ul>
                 -->
+
             </div>
         </div>
     </nav>
@@ -83,8 +88,7 @@
 
     {# Footer Section #}
     <footer class="mt-5 mb-3 text-center text-muted">
-        <!-- CORRECTED LINE using current_year variable -->
-        © {{ current_year }} Restaurant Billing App
+        © {{ current_year }} Restaurant Billing App {# Uses variable from context processor #}
     </footer>
     {# End Footer Section #}
 
