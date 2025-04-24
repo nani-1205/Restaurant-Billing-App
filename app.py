@@ -1,19 +1,23 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from pymongo import MongoClient, errors
+import urllib.parse  # For encoding credentials
+from datetime import datetime, timedelta, timezone  # Added timedelta, timezone
+
 from bson import ObjectId
-from datetime import datetime, timedelta, timezone # Added timedelta, timezone
-from dateutil.relativedelta import relativedelta # Added relativedelta
-import urllib.parse # For encoding credentials
-import config # Import config variables
+from dateutil.relativedelta import relativedelta  # Added relativedelta
+from flask import (Flask, flash, jsonify, redirect, render_template, request,
+                   url_for)
+from pymongo import MongoClient, errors
+
+import config  # Import config variables
 
 app = Flask(__name__)
-app.config.from_object(config) # Load config from config.py
-app.secret_key = app.config['SECRET_KEY'] # Needed for flash messages
+app.config.from_object(config)  # Load config from config.py
+app.secret_key = app.config['SECRET_KEY']  # Needed for flash messages
 
 # --- Database Setup ---
 client = None
 db = None
+
 
 def connect_db():
     """Establishes connection to MongoDB and ensures DB/Collections exist."""
@@ -22,22 +26,22 @@ def connect_db():
     needs_connection = client is None
     if not needs_connection and client is not None:
         try:
-            client.admin.command('ping') # Quick check if server is still reachable
+            client.admin.command('ping')  # Quick check if server is still reachable
         except (errors.ConnectionFailure, errors.ServerSelectionTimeoutError, AttributeError):
              print("Existing client connection lost, will attempt reconnect.")
              needs_connection = True
-             client = None # Reset client
-             db = None # Reset db
+             client = None  # Reset client
+             db = None  # Reset db
 
     if needs_connection:
         try:
-            print(f"Attempting to connect to MongoDB using URI from config...")
+            print("Attempting to connect to MongoDB using URI from config...")
             # Ensure MONGO_URI is correctly constructed in config.py
             client = MongoClient(
                 config.MONGO_URI,
-                serverSelectionTimeoutMS=5000 # Timeout after 5 seconds
+                serverSelectionTimeoutMS=5000  # Timeout after 5 seconds
             )
-            client.admin.command('ismaster') # Verify connection works
+            client.admin.command('ismaster')  # Verify connection works
             print("MongoDB connection successful.")
 
             db = client[config.MONGO_DB_NAME]
@@ -64,7 +68,7 @@ def connect_db():
             print(f"MongoDB connection failed (ConnectionFailure): {e}")
             client = None
             db = None
-        except errors.OperationFailure as e: # Catch auth errors during initial connection test
+        except errors.OperationFailure as e:  # Catch auth errors during initial connection test
              print(f"MongoDB operation failed (Authentication Error?): {e}")
              client = None
              db = None
@@ -74,10 +78,12 @@ def connect_db():
             db = None
     return db
 
+
 # Use before_request to ensure DB connection attempt before handling
 @app.before_request
 def before_request_func():
     get_db()
+
 
 # --- Helper Functions ---
 def get_db():
@@ -86,7 +92,7 @@ def get_db():
     if db is None:
         print("DB object is None, attempting to reconnect...")
         return connect_db()
-    if client is None: # If db exists but client is somehow None, reconnect
+    if client is None:  # If db exists but client is somehow None, reconnect
         print("DB client is None, attempting to reconnect...")
         db = None
         return connect_db()
@@ -101,14 +107,16 @@ def get_db():
         return connect_db()
     return db
 
+
 def calculate_order_total(items):
     """Calculates subtotal, tax, and total for a list of order items."""
-    if not items: # Handle empty item list
+    if not items:  # Handle empty item list
         return 0.0, 0.0, 0.0
     subtotal = sum(item['price'] * item['quantity'] for item in items if item.get('status') != 'cancelled')
     tax = (subtotal * config.TAX_RATE_PERCENT) / 100.0
     total = subtotal + tax
     return subtotal, tax, total
+
 
 # --- Routes ---
 
@@ -188,6 +196,7 @@ def index():
                            kds_preview=kds_preview
                            )
 
+
 # --- Menu Management ---
 @app.route('/menu', methods=['GET', 'POST'])
 def menu_manage():
@@ -241,6 +250,7 @@ def menu_manage():
         db_error_flag = True
 
     return render_template('menu_manage.html', items=items, search_query=search_query, db_error=db_error_flag)
+
 
 @app.route('/menu/edit/<item_id>', methods=['GET', 'POST'])
 def menu_edit(item_id):
@@ -297,6 +307,7 @@ def menu_edit(item_id):
         print(f"Error loading item {item_id}: {e}")
         return redirect(url_for('menu_manage'))
 
+
 @app.route('/menu/delete/<item_id>', methods=['POST'])
 def menu_delete(item_id):
     db_instance = get_db()
@@ -313,6 +324,7 @@ def menu_delete(item_id):
         print(f"Error deleting menu item {item_id}: {e}")
     return redirect(url_for('menu_manage'))
 
+
 @app.route('/menu/toggle_availability/<item_id>', methods=['POST'])
 def menu_toggle_availability(item_id):
     db_instance = get_db()
@@ -328,6 +340,7 @@ def menu_toggle_availability(item_id):
     except Exception as e:
         print(f"Error toggling availability for {item_id}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 # --- Table Management ---
 @app.route('/tables', methods=['GET', 'POST'])
@@ -370,6 +383,7 @@ def tables_manage():
         db_error_flag = True
     return render_template('tables_manage.html', tables=tables, db_error=db_error_flag)
 
+
 @app.route('/tables/update_status/<table_id>', methods=['POST'])
 def table_update_status(table_id):
     db_instance = get_db()
@@ -395,6 +409,7 @@ def table_update_status(table_id):
         print(f"Error updating table status for {table_id}: {e}")
     return redirect(url_for('tables_manage'))
 
+
 @app.route('/tables/delete/<table_id>', methods=['POST'])
 def table_delete(table_id):
     db_instance = get_db()
@@ -414,6 +429,7 @@ def table_delete(table_id):
         flash(f"Error deleting table: {e}", "danger")
         print(f"Error deleting table {table_id}: {e}")
     return redirect(url_for('tables_manage'))
+
 
 # --- Order Management ---
 @app.route('/order/new/<table_id>', methods=['GET', 'POST'])
@@ -481,6 +497,7 @@ def order_new(table_id):
         print(f"Error in order_new for table {table_id}: {e}")
         return redirect(url_for('tables_manage'))
 
+
 @app.route('/order/view/<order_id>', methods=['GET'])
 def order_view(order_id):
     db_instance = get_db()
@@ -500,6 +517,7 @@ def order_view(order_id):
         flash(f"Error loading order: {e}", "danger")
         print(f"Error loading order {order_id}: {e}")
         return redirect(url_for('index'))
+
 
 @app.route('/order/add_item/<order_id>', methods=['POST'])
 def order_add_item(order_id):
@@ -541,6 +559,7 @@ def order_add_item(order_id):
         print(f"Error adding item to order {order_id}: {e}")
         return redirect(url_for('order_view', order_id=order_id))
 
+
 @app.route('/order/update_item_status/<order_id>/<int:item_index>', methods=['POST'])
 def order_update_item_status(order_id, item_index):
     db_instance = get_db()
@@ -561,12 +580,13 @@ def order_update_item_status(order_id, item_index):
                 if order:
                     subtotal, tax, total = calculate_order_total(order.get('items', []))
                     db_instance.orders.update_one({"_id": ObjectId(order_id)}, {"$set": {"subtotal": subtotal, "tax": tax, "total_amount": total, "updated_at": datetime.now(timezone.utc)}})
-            flash(f"Item status updated.", "success") # For non-JS fallback
+            # flash(f"Item status updated.", "success") # Can cause duplicate flashes with JS reload
             return jsonify({"success": True, "new_status": new_status})
         else: return jsonify({"success": False, "error": "Order/item not found."}), 404
     except Exception as e:
         print(f"Error updating item status {order_id}/{item_index}: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route('/order/close/<order_id>', methods=['POST'])
 def order_close(order_id):
@@ -599,6 +619,7 @@ def order_close(order_id):
         print(f"Error closing order {order_id}: {e}")
         return redirect(request.referrer or url_for('index'))
 
+
 # --- Billing & Invoicing ---
 @app.route('/billing')
 def billing():
@@ -612,6 +633,7 @@ def billing():
     except Exception as e:
         flash(f"Error fetching bills: {e}", "danger"); print(f"Error fetching bills: {e}"); db_error_flag = True
     return render_template('billing.html', orders=closed_orders, db_error=db_error_flag)
+
 
 @app.route('/bill/view/<order_id>')
 def bill_view(order_id):
@@ -629,6 +651,7 @@ def bill_view(order_id):
         return render_template('bill_view.html', order=order, bill=bill, tax_rate=config.TAX_RATE_PERCENT)
     except Exception as e:
         flash(f"Error loading bill: {e}", "danger"); print(f"Error loading bill {order_id}: {e}"); return redirect(url_for('billing'))
+
 
 @app.route('/bill/finalize/<order_id>', methods=['POST'])
 def bill_finalize(order_id):
@@ -663,6 +686,7 @@ def bill_finalize(order_id):
     except ValueError: flash("Invalid discount value.", "danger"); return redirect(url_for('bill_view', order_id=order_id))
     except Exception as e: flash(f"Error finalizing bill: {e}", "danger"); print(f"Error finalizing bill {order_id}: {e}"); return redirect(url_for('bill_view', order_id=order_id))
 
+
 # --- Kitchen Display System (KDS) ---
 @app.route('/kds')
 def kds():
@@ -680,26 +704,53 @@ def kds():
     except Exception as e: flash(f"Error fetching KDS items: {e}", "danger"); print(f"Error fetching KDS items: {e}"); db_error_flag = True
     return render_template('kds.html', kds_items=kds_items, db_error=db_error_flag)
 
-# --- Analytics & Reporting ---
+
+# --- Analytics & Reporting (with Custom Date Range) ---
 @app.route('/reports')
 def reports():
     db_instance = get_db()
     db_error_flag = db_instance is None
     report_data = {"total_sales": 0, "bill_count": 0, "top_selling_items": []}
+
     selected_period = request.args.get('period', 'today')
+    custom_start_str = request.args.get('start_date')
+    custom_end_str = request.args.get('end_date')
+
     start_date, end_date, selected_period_display = None, None, "N/A"
     now = datetime.now(timezone.utc)
 
     try:
-        if selected_period == 'today': start_date = now.replace(hour=0, minute=0, second=0, microsecond=0); end_date = start_date + timedelta(days=1); selected_period_display = "Today"
-        elif selected_period == 'yesterday': yesterday = now - timedelta(days=1); start_date = yesterday.replace(hour=0, minute=0, second=0, microsecond=0); end_date = start_date + timedelta(days=1); selected_period_display = "Yesterday"
-        elif selected_period == 'month': start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0); end_date = (start_date + relativedelta(months=1)); selected_period_display = "This Month"
-        elif selected_period == 'prev_month': last_month_end = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0); start_date = last_month_end - relativedelta(months=1); end_date = last_month_end; selected_period_display = "Last Month"
-        elif selected_period == 'year': start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0); end_date = (start_date + relativedelta(years=1)); selected_period_display = "This Year"
-        else:
-            flash(f"Invalid period '{selected_period}'. Defaulting to 'Today'.", "warning"); selected_period = 'today'
-            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0); end_date = start_date + timedelta(days=1); selected_period_display = "Today"
+        # --- Custom Date Range Logic ---
+        if custom_start_str and custom_end_str:
+            try:
+                start_date = datetime.strptime(custom_start_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+                end_date_parsed = datetime.strptime(custom_end_str, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+                end_date = end_date_parsed + timedelta(days=1) # Use start of next day for $lt
 
+                if end_date <= start_date:
+                    flash("End date must be after start date.", "warning")
+                    selected_period, custom_start_str, custom_end_str = 'today', None, None # Fallback
+                else:
+                    selected_period = 'custom'
+                    selected_period_display = f"Custom Range"
+
+            except ValueError:
+                flash("Invalid date format (YYYY-MM-DD).", "warning")
+                selected_period, custom_start_str, custom_end_str = 'today', None, None # Fallback
+
+        # --- Calculate Dates if Not Custom (or if Custom Failed) ---
+        if selected_period != 'custom':
+             if selected_period == 'today': start_date = now.replace(hour=0, minute=0, second=0, microsecond=0); end_date = start_date + timedelta(days=1); selected_period_display = "Today"
+             elif selected_period == 'yesterday': yesterday = now - timedelta(days=1); start_date = yesterday.replace(hour=0, minute=0, second=0, microsecond=0); end_date = start_date + timedelta(days=1); selected_period_display = "Yesterday"
+             elif selected_period == 'month': start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0); end_date = (start_date + relativedelta(months=1)); selected_period_display = "This Month"
+             elif selected_period == 'prev_month': last_month_end = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0); start_date = last_month_end - relativedelta(months=1); end_date = last_month_end; selected_period_display = "Last Month"
+             elif selected_period == 'year': start_date = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0); end_date = (start_date + relativedelta(years=1)); selected_period_display = "This Year"
+             else: # Default if invalid period string
+                 if selected_period != 'today': flash(f"Invalid period '{selected_period}'. Defaulting to Today.", "warning")
+                 selected_period = 'today'
+                 start_date = now.replace(hour=0, minute=0, second=0, microsecond=0); end_date = start_date + timedelta(days=1); selected_period_display = "Today"
+
+        # --- Database Aggregation ---
         if start_date and end_date and db_instance is not None:
             print(f"Report: {selected_period}, Start: {start_date}, End: {end_date}")
             match_criteria = {"billed_at": {"$gte": start_date, "$lt": end_date}, "payment_status": "paid"}
@@ -709,11 +760,21 @@ def reports():
             report_data["total_sales"] = sales_data.get('total_sales', 0); report_data["bill_count"] = sales_data.get('count', 0)
             pipeline_top_items = [{"$match": match_criteria}, {"$unwind": "$items"}, {"$match": {"items.status": {"$ne": "cancelled"}}}, {"$group": {"_id": "$items.name", "total_quantity": {"$sum": "$items.quantity"}}}, {"$sort": {"total_quantity": -1}}, {"$limit": 5}]
             report_data["top_selling_items"] = list(db_instance.bills.aggregate(pipeline_top_items))
-        elif db_instance is None: flash("Database connection error.", "danger"); db_error_flag = True
-    except Exception as e:
-        flash(f"Error generating reports: {e}", "danger"); print(f"Error reports period '{selected_period}': {e}"); db_error_flag = True
+        elif db_instance is None:
+             flash("Database connection error.", "danger"); db_error_flag = True
 
-    return render_template('reports.html', report_data=report_data, db_error=db_error_flag, selected_period=selected_period, selected_period_display=selected_period_display, start_date=start_date, end_date=end_date)
+    except Exception as e:
+        flash(f"Error generating reports: {e}", "danger")
+        print(f"Error reports period '{selected_period}': {e}")
+        db_error_flag = True
+
+    return render_template(
+        'reports.html', report_data=report_data, db_error=db_error_flag,
+        selected_period=selected_period, selected_period_display=selected_period_display,
+        start_date_obj=start_date, end_date_obj=end_date, # Pass datetime objects
+        custom_start_value=custom_start_str, custom_end_value=custom_end_str # Pass original strings
+    )
+
 
 # --- Context Processors ---
 @app.context_processor
@@ -721,18 +782,19 @@ def inject_global_vars():
     """Inject global variables/config into all templates."""
     db_status_ok = get_db() is not None
     now_utc = datetime.now(timezone.utc)
-    # Make timedelta accessible in templates for date calculations
+    # Make timedelta accessible in templates
     from datetime import timedelta
     return dict(
         config=config, db_status_ok=db_status_ok, now=now_utc,
         current_year=now_utc.year, timedelta=timedelta
-        )
+    )
+
 
 # --- Main Execution ---
 if __name__ == '__main__':
     print("Starting Flask development server...")
-    # For development convenience, ensure DB connection is attempted on start
-    # connect_db() # Removed as before_request handles this better
+    # Set host='0.0.0.0' only if you need external access during development
+    # Set threaded=True only for DEVELOPMENT server
     app.run(host='0.0.0.0', port=5000, debug=app.config['DEBUG'], threaded=True)
 
     # Production Deployment Examples (Commented out)

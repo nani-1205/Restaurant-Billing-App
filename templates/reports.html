@@ -4,38 +4,60 @@
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4">
          <h2><i class="fas fa-chart-line me-2"></i>Reports & Analytics</h2>
-         {# Optional: Add a download button later #}
+         {# Optional: Add a download/print button later #}
+         {# <button class="btn btn-sm btn-outline-secondary"><i class="fas fa-print me-1"></i> Print Report</button> #}
     </div>
 
-    {# Period Selection Controls #}
+    {# Period Selection Controls Card #}
     <div class="card mb-4">
         <div class="card-header">
             <i class="fas fa-filter me-1"></i> Select Report Period
         </div>
         <div class="card-body">
-            <div class="btn-group flex-wrap" role="group" aria-label="Report Period Selection"> {# Use flex-wrap for responsiveness #}
-                <a href="{{ url_for('reports', period='today') }}" class="btn btn-sm {% if selected_period == 'today' %}btn-primary{% else %}btn-outline-secondary{% endif %} mb-1 me-1">Today</a>
-                <a href="{{ url_for('reports', period='yesterday') }}" class="btn btn-sm {% if selected_period == 'yesterday' %}btn-primary{% else %}btn-outline-secondary{% endif %} mb-1 me-1">Yesterday</a>
-                <a href="{{ url_for('reports', period='month') }}" class="btn btn-sm {% if selected_period == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %} mb-1 me-1">This Month</a>
-                <a href="{{ url_for('reports', period='prev_month') }}" class="btn btn-sm {% if selected_period == 'prev_month' %}btn-primary{% else %}btn-outline-secondary{% endif %} mb-1 me-1">Last Month</a>
-                <a href="{{ url_for('reports', period='year') }}" class="btn btn-sm {% if selected_period == 'year' %}btn-primary{% else %}btn-outline-secondary{% endif %} mb-1 me-1">This Year</a>
-                {# Placeholder for custom date range selection if needed later
-                <button type="button" class="btn btn-sm btn-outline-secondary mb-1 me-1" data-bs-toggle="modal" data-bs-target="#customDateModal">Custom Range</button>
-                 #}
+            {# Predefined Periods Buttons #}
+            <div class="btn-group flex-wrap mb-3" role="group" aria-label="Predefined Report Periods">
+                {# Check selected_period passed from Flask route #}
+                <a href="{{ url_for('reports', period='today') }}" class="btn btn-sm {% if selected_period == 'today' %}btn-primary active{% else %}btn-outline-secondary{% endif %} mb-1 me-1">Today</a>
+                <a href="{{ url_for('reports', period='yesterday') }}" class="btn btn-sm {% if selected_period == 'yesterday' %}btn-primary active{% else %}btn-outline-secondary{% endif %} mb-1 me-1">Yesterday</a>
+                <a href="{{ url_for('reports', period='month') }}" class="btn btn-sm {% if selected_period == 'month' %}btn-primary active{% else %}btn-outline-secondary{% endif %} mb-1 me-1">This Month</a>
+                <a href="{{ url_for('reports', period='prev_month') }}" class="btn btn-sm {% if selected_period == 'prev_month' %}btn-primary active{% else %}btn-outline-secondary{% endif %} mb-1 me-1">Last Month</a>
+                <a href="{{ url_for('reports', period='year') }}" class="btn btn-sm {% if selected_period == 'year' %}btn-primary active{% else %}btn-outline-secondary{% endif %} mb-1 me-1">This Year</a>
             </div>
+
+             {# Custom Date Range Form #}
+             <hr>
+             <form method="GET" action="{{ url_for('reports') }}" class="row g-2 align-items-end">
+                 <div class="col-md-4">
+                    <label for="start_date" class="form-label form-label-sm">Custom Start Date:</label>
+                    {# Use custom_start_value passed from Flask route to pre-fill #}
+                    <input type="date" class="form-control form-control-sm" id="start_date" name="start_date" value="{{ custom_start_value or '' }}" required>
+                 </div>
+                 <div class="col-md-4">
+                    <label for="end_date" class="form-label form-label-sm">Custom End Date:</label>
+                     {# Use custom_end_value passed from Flask route to pre-fill #}
+                    <input type="date" class="form-control form-control-sm" id="end_date" name="end_date" value="{{ custom_end_value or '' }}" required>
+                 </div>
+                 <div class="col-md-auto">
+                    <button type="submit" class="btn btn-sm btn-success w-100"> {# Make button full width on small breakpoint #}
+                        <i class="fas fa-search me-1"></i> Generate
+                    </button>
+                 </div>
+             </form>
         </div>
     </div>
 
-
-    <p class="text-muted mb-4">
+    {# Display Selected Period Info #}
+    <div class="alert alert-secondary small py-2 px-3 mb-4"> {# Use secondary alert for info #}
         Showing report for: <strong>{{ selected_period_display }}</strong>
-        {# Display date range (adjust end date for display: $lt means up to, but not including) #}
-        {% if start_date and end_date %}
-            <span class="ms-2">(<i class="fas fa-calendar-alt me-1"></i>{{ start_date.strftime('%b %d, %Y') }} - {{ (end_date - timedelta(seconds=1)).strftime('%b %d, %Y') }})</span>
+        {# Display date range correctly using start_date_obj and end_date_obj #}
+        {% if start_date_obj and end_date_obj %}
+             {# Subtract 1 second from end_date_obj for display purpose only #}
+            <span class="ms-2">(<i class="fas fa-calendar-alt me-1"></i>{{ start_date_obj.strftime('%b %d, %Y') }} - {{ (end_date_obj - timedelta(seconds=1)).strftime('%b %d, %Y') }})</span>
         {% endif %}
-    </p>
-    <hr>
+    </div>
+    {# Removed the <hr> as the alert provides separation #}
 
+     {# Display Report Data or Error Message #}
      {% if db_error %}
         <div class="alert alert-danger"><i class="fas fa-database me-2"></i>Database connection error prevented report generation.</div>
      {% else %}
@@ -43,11 +65,10 @@
             <!-- Sales Summary Card -->
             <div class="col-lg-6 mb-4">
                 <div class="card h-100">
-                     {# Updated Card Header #}
                     <div class="card-header"><i class="fas fa-dollar-sign me-2"></i>Sales Summary ({{ selected_period_display }})</div>
-                    <div class="card-body d-flex flex-column"> {# Use flex column #}
+                    <div class="card-body d-flex flex-column">
                         <div class="row text-center">
-                            <div class="col-6 border-end"> {# Add border #}
+                            <div class="col-6 border-end">
                                 <p class="text-muted mb-1 small text-uppercase">Total Sales</p>
                                 <h4 class="mb-0 price-text"><span class="currency-symbol">₹</span>{{ "%.2f"|format(report_data.total_sales) }}</h4>
                             </div>
@@ -56,8 +77,7 @@
                                 <h4 class="mb-0">{{ report_data.bill_count }}</h4>
                             </div>
                         </div>
-                         {# Optional: Average Bill - push to bottom #}
-                         <div class="mt-auto pt-3 text-center border-top"> {# mt-auto pushes down #}
+                         <div class="mt-auto pt-3 text-center border-top">
                             <p class="text-muted mb-1 small text-uppercase">Average Bill Value</p>
                             <h5 class="mb-0 price-text">
                                 <span class="currency-symbol">₹</span>{{ "%.2f"|format(report_data.total_sales / report_data.bill_count) if report_data.bill_count > 0 else "0.00" }}
@@ -70,11 +90,10 @@
             <!-- Top Selling Items Card -->
             <div class="col-lg-6 mb-4">
                 <div class="card h-100">
-                     {# Updated Card Header #}
                     <div class="card-header"><i class="fas fa-star me-2"></i>Top Selling Items ({{ selected_period_display }})</div>
-                    <div class="card-body p-0"> {# Remove padding for list #}
+                    <div class="card-body p-0 d-flex flex-column"> {# Remove padding, use flex #}
                         {% if report_data.top_selling_items %}
-                        <div class="table-responsive"> {# Wrap list in table-responsive for consistency #}
+                        <div class="table-responsive flex-grow-1"> {# Allow list to grow #}
                             <ul class="list-group list-group-flush">
                                 {% for item in report_data.top_selling_items %}
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -85,12 +104,14 @@
                             </ul>
                         </div>
                         {% else %}
-                        <p class="text-muted p-3 text-center mb-0">No sales data available for this period.</p>
+                        <div class="text-muted p-3 text-center mb-0 flex-grow-1 d-flex align-items-center justify-content-center"> {# Center message vertically #}
+                            <span><i class="fas fa-info-circle me-1"></i>No sales data available for this period.</span>
+                        </div>
                         {% endif %}
-                    </div>
-                     <div class="card-footer text-muted small">
-                         Top 5 items by quantity sold in the selected period.
-                     </div>
+                         <div class="card-footer text-muted small">
+                             Top 5 items by quantity sold in the selected period.
+                         </div>
+                    </div> {# End card-body #}
                 </div>
             </div>
         </div>
@@ -105,5 +126,35 @@
 {% endblock %}
 
 {% block scripts_extra %}
-    {# Add JavaScript for custom date range picker here if implemented later #}
+    {# Client-side validation script for date range #}
+    <script>
+        const startDateInput = document.getElementById('start_date');
+        const endDateInput = document.getElementById('end_date');
+
+        function validateDateRange() {
+            // Ensure both inputs exist before proceeding
+            if (!startDateInput || !endDateInput) return;
+
+            // Check if both have values
+            if (startDateInput.value && endDateInput.value) {
+                if (endDateInput.value < startDateInput.value) {
+                    // Set native browser validation message
+                    endDateInput.setCustomValidity("End date cannot be before start date.");
+                    // Trigger the browser validation UI (optional, depends on browser)
+                    endDateInput.reportValidity();
+                } else {
+                    // Clear any previous validation message
+                    endDateInput.setCustomValidity("");
+                }
+            } else {
+                 // Clear validation if one field is empty (native required should handle this)
+                 endDateInput.setCustomValidity("");
+            }
+        }
+
+        // Add event listeners if the inputs exist on the page
+        if(startDateInput) startDateInput.addEventListener('change', validateDateRange);
+        if(endDateInput) endDateInput.addEventListener('change', validateDateRange);
+
+    </script>
 {% endblock %}
