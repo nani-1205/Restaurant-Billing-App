@@ -1,4 +1,5 @@
 Flask>=2.0
 pymongo>=4.0
-python-dotenv>=0.19 # If using .env for config
-werkzeug>=2.0 # Often needed for Flask updates
+python-dotenv>=0.19
+python-dateutil>=2.8 # Added for relative date calculations
+Werkzeug>=2.0 # Often needed by Flask/related packages
